@@ -6,7 +6,9 @@ export const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 export const MAX_SESSION_TTL_MS = 60 * 60 * 1000;
 export const MAX_LOGS_PER_SESSION = 200;
 export const MAX_CAPTURE_CHARS = 80_000;
-export const ADMIN_SECRET_HASH = process.env.ADMIN_SECRET_HASH || "ce34128fd5efe2e4fdf4725ee5268992db7f4d00b71f8cd08823b1011e1e267a";
+export const DEFAULT_ADMIN_SECRET_HASH = "ce34128fd5efe2e4fdf4725ee5268992db7f4d00b71f8cd08823b1011e1e267a";
+export const ADMIN_SECRET_HASH = (process.env.ADMIN_SECRET_HASH || DEFAULT_ADMIN_SECRET_HASH).trim().toLowerCase();
+export const ADMIN_SECRET = process.env.ADMIN_SECRET?.trim();
 
 export interface AccessSession {
   token: string;
@@ -80,14 +82,25 @@ export function logsKey(sessionId: string) { return `jai:logs:${sessionId}`; }
 export const sessionsIndexKey = "jai:sessions:index";
 export function adminKey(token: string) { return `jai:admin:${token}`; }
 
+export function normalizeSecret(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).join(" ");
+}
+
 export function sha256(value: string) {
-  return crypto.createHash("sha256").update(value.trim()).digest("hex");
+  return crypto.createHash("sha256").update(normalizeSecret(value)).digest("hex");
 }
 
 export function safeEqual(a: string, b: string) {
-  const aBuffer = Buffer.from(a);
-  const bBuffer = Buffer.from(b);
+  const aBuffer = Buffer.from(a.trim());
+  const bBuffer = Buffer.from(b.trim());
   return aBuffer.length === bBuffer.length && crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
+export function verifyAdminSecret(secret: unknown) {
+  if (typeof secret !== "string") return false;
+  const normalized = normalizeSecret(secret);
+  if (ADMIN_SECRET && safeEqual(normalized, normalizeSecret(ADMIN_SECRET))) return true;
+  return safeEqual(sha256(normalized), ADMIN_SECRET_HASH);
 }
 
 export function newToken(bytes = 24) {

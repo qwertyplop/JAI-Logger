@@ -6,7 +6,6 @@ colorTo: purple
 sdk: docker
 pinned: false
 ---
-
 # JAI Request Debugger
 
 Временный debug-инструмент для просмотра request/response payloads от JanitorAI, SillyTavern и похожих OpenAI-compatible клиентов.
@@ -51,7 +50,15 @@ pinned: false
 
 ## Admin secret
 
-По умолчанию используется захешированная 6-словная фраза. В коде хранится только SHA-256 hash. Если нужно заменить фразу, посчитай SHA-256 от новой строки и задай `ADMIN_SECRET_HASH` в Vercel env.
+Самый простой способ заменить фразу — задать в Vercel env обычную строку:
+
+```bash
+ADMIN_SECRET="one two three four five six"
+```
+
+После изменения env обязательно сделай redeploy. UI нормализует пробелы между словами, поэтому `one   two` будет проверяться как `one two`.
+
+Альтернатива: можно хранить не фразу, а SHA-256 hash нормализованной строки в `ADMIN_SECRET_HASH`. Если заданы оба значения, `ADMIN_SECRET` тоже принимается.
 
 ## Local commands
 

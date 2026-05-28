@@ -1,4 +1,4 @@
-import { ADMIN_COOKIE, ADMIN_SECRET_HASH, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, isAdmin, json, listSessions, newToken, readJson, redis, requireAdmin, safeEqual, saveSession, sha256 } from "./_lib";
+import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, isAdmin, json, listSessions, newToken, readJson, redis, requireAdmin, saveSession, verifyAdminSecret } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
@@ -9,7 +9,7 @@ export default async function handler(req: Request) {
 
   if (method === "POST" && parts[0] === "login") {
     const { secret } = await readJson(req);
-    if (typeof secret !== "string" || !safeEqual(sha256(secret), ADMIN_SECRET_HASH)) return json({ error: "Invalid admin secret." }, 401);
+    if (!verifyAdminSecret(secret)) return json({ error: "Invalid admin secret." }, 401);
     const token = newToken(32);
     await redis(["SET", adminKey(token), "1", "EX", Math.floor(ADMIN_SESSION_TTL_MS / 1000)]);
     return json({ ok: true }, 200, { "Set-Cookie": `${ADMIN_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Secure; Path=/; Max-Age=${Math.floor(ADMIN_SESSION_TTL_MS / 1000)}` });
