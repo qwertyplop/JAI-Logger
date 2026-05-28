@@ -284,8 +284,8 @@ export function requestUrl(req: Request) {
 export function routeParts(req: Request) {
   const url = requestUrl(req);
   const explicitPath = queryValue(req, "path");
-  const pathname = explicitPath ? `/${explicitPath}` : url.pathname;
-  const parts = pathname.split("/").filter(Boolean);
+  if (explicitPath) return explicitPath.split("/").filter(Boolean);
+  const parts = url.pathname.split("/").filter(Boolean);
   return parts[0] === "api" ? parts.slice(1) : parts;
 }
 
