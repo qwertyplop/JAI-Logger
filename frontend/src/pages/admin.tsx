@@ -100,11 +100,13 @@ export default function AdminPanel() {
   };
 
   const updateSecretWord = (index: number, value: string) => {
-    const words = value.trim().split(/\s+/).filter(Boolean);
+    const cleaned = value.trim();
+    const pastedWords = cleaned.split(/\s+/).filter(Boolean);
+
     setSecretWords((prev) => {
       const next = [...prev];
-      if (words.length > 1) {
-        words.slice(0, 6 - index).forEach((word, offset) => {
+      if (pastedWords.length > 1) {
+        pastedWords.slice(0, 6 - index).forEach((word, offset) => {
           next[index + offset] = word;
         });
       } else {
@@ -112,11 +114,10 @@ export default function AdminPanel() {
       }
       return next;
     });
-    if (words.length > 1) {
-      const target = Math.min(5, index + words.length - 1);
+
+    if (pastedWords.length > 1) {
+      const target = Math.min(5, index + pastedWords.length - 1);
       requestAnimationFrame(() => document.getElementById(`secret-word-${target}`)?.focus());
-    } else if (value && index < 5) {
-      requestAnimationFrame(() => document.getElementById(`secret-word-${index + 1}`)?.focus());
     }
   };
 
