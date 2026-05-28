@@ -138,7 +138,7 @@ export default function Home() {
                 Вставь полный HTTPS endpoint своего провайдера до <code className="text-emerald-300">/chat/completions</code>. Логгер будет пересылать только POST-запросы к этому конкретному endpoint и показывать request/response для отладки.
               </p>
             </div>
-            <Badge variant="outline" className="border-zinc-700 text-zinc-300">{session?.label || "User Session"}</Badge>
+            <Badge variant="outline" className="border-zinc-700 text-zinc-300">Temporary Session</Badge>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
