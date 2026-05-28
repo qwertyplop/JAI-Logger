@@ -1,4 +1,4 @@
-import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, sendResponse, verifyAdminSecret } from "./_lib";
+import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, clearAllSessions, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, sendResponse, verifyAdminSecret } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
@@ -25,6 +25,7 @@ async function handle(req: Request) {
 
   if (parts[0] === "sessions" && !parts[1]) {
     if (method === "GET") return json(await listSessions());
+    if (method === "DELETE") return json({ success: true, deleted: await clearAllSessions() });
     if (method === "POST") {
       const { durationMinutes = 30, label = "" } = await readJson(req);
       const requestedMinutes = Number(durationMinutes);

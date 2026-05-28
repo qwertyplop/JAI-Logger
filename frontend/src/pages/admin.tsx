@@ -71,17 +71,26 @@ export default function AdminPanel() {
   const [label, setLabel] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [refreshDone, setRefreshDone] = useState(false);
+  const [clearDone, setClearDone] = useState(false);
+  const [deletedToken, setDeletedToken] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ session: AccessSession; logs: LogEntry[] } | null>(null);
 
   const activeCount = useMemo(() => sessions.filter((s) => (s.remainingTime || 0) > 0).length, [sessions]);
 
-  const loadSessions = async () => {
+  const loadSessions = async (showFeedback = false) => {
     const res = await fetch("/api/admin/sessions");
     if (res.status === 401) {
       setIsAuth(false);
       return;
     }
-    if (res.ok) setSessions(await res.json());
+    if (res.ok) {
+      setSessions(await res.json());
+      if (showFeedback) {
+        setRefreshDone(true);
+        window.setTimeout(() => setRefreshDone(false), 1500);
+      }
+    }
   };
 
   const checkAuth = async () => {
@@ -148,8 +157,25 @@ export default function AdminPanel() {
   };
 
   const killSession = async (token: string) => {
-    await fetch(`/api/admin/sessions/${encodeURIComponent(token)}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/sessions/${encodeURIComponent(token)}`, { method: "DELETE" });
+    if (!res.ok) {
+      setError("Не удалось отозвать сессию");
+      return;
+    }
     setSessions((prev) => prev.filter((s) => s.token !== token));
+    setDeletedToken(token);
+    window.setTimeout(() => setDeletedToken(null), 1500);
+  };
+
+  const clearAllSessions = async () => {
+    const res = await fetch("/api/admin/sessions", { method: "DELETE" });
+    if (!res.ok) {
+      setError("Не удалось очистить сессии");
+      return;
+    }
+    setSessions([]);
+    setClearDone(true);
+    window.setTimeout(() => setClearDone(false), 1800);
   };
 
   const openLogs = async (session: AccessSession) => {
@@ -227,7 +253,7 @@ export default function AdminPanel() {
             <h1 className="text-4xl font-black tracking-tight text-white flex items-center gap-3"><Activity className="w-8 h-8 text-emerald-400" />JAI Admin</h1>
             <p className="text-zinc-500 mt-1">Генерация временных debug-ссылок и просмотр AI request/response логов. Provider endpoint пользователь указывает сам на своей сессионной странице.</p>
           </div>
-          <div className="flex gap-3"><button onClick={loadSessions} className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"><RefreshCw className="w-4 h-4" />Обновить</button><button onClick={logout} className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-300 flex items-center gap-2"><LogOut className="w-4 h-4" />Выйти</button></div>
+          <div className="flex flex-wrap gap-3"><button onClick={() => loadSessions(true)} className={`px-4 py-2 rounded-xl border flex items-center gap-2 transition-all ${refreshDone ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800"}`}>{refreshDone ? <Check className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}{refreshDone ? "Готово" : "Обновить"}</button><button onClick={clearAllSessions} className={`px-4 py-2 rounded-xl border flex items-center gap-2 transition-all ${clearDone ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-red-300 hover:bg-red-500/10"}`}>{clearDone ? <Check className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}{clearDone ? "Очищено" : "Очистить всё"}</button><button onClick={logout} className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-300 flex items-center gap-2"><LogOut className="w-4 h-4" />Выйти</button></div>
         </header>
 
         <section className="grid lg:grid-cols-[1fr_360px] gap-6">
@@ -262,7 +288,7 @@ export default function AdminPanel() {
                   <td className="p-4 max-w-md"><div className={`font-mono text-xs truncate ${s.upstreamUrl ? "text-zinc-400" : "text-amber-300"}`} title={s.upstreamUrl || "Пользователь еще не указал endpoint"}>{s.upstreamUrl || "Endpoint еще не указан"}</div><div className="text-xs text-zinc-600 mt-1">Создано: {new Date(s.createdAt).toLocaleString()}</div></td>
                   <td className="p-4"><div className="flex items-center gap-2 text-xs font-bold"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span>{formatRemaining(s.remainingTime)}</span></div></td>
                   <td className="p-4"><div className="font-mono text-sm text-zinc-300">{s.logCount || 0}</div></td>
-                  <td className="p-4"><div className="flex justify-end gap-2"><button onClick={() => window.open(`/?token=${encodeURIComponent(s.token)}`, "_blank")} className="p-2 text-zinc-400 hover:text-white bg-zinc-800 rounded-lg" title="Открыть пользовательскую страницу"><Eye className="w-4 h-4" /></button><button onClick={() => openLogs(s)} className="p-2 text-zinc-400 hover:text-emerald-300 bg-zinc-800 rounded-lg" title="Посмотреть логи"><Activity className="w-4 h-4" /></button><button onClick={() => killSession(s.token)} className="p-2 text-zinc-400 hover:text-red-300 bg-zinc-800 rounded-lg" title="Отозвать"><Trash2 className="w-4 h-4" /></button></div></td>
+                  <td className="p-4"><div className="flex justify-end gap-2"><button onClick={() => window.open(`/?token=${encodeURIComponent(s.token)}`, "_blank")} className="p-2 text-zinc-400 hover:text-white bg-zinc-800 rounded-lg" title="Открыть пользовательскую страницу"><Eye className="w-4 h-4" /></button><button onClick={() => openLogs(s)} className="p-2 text-zinc-400 hover:text-emerald-300 bg-zinc-800 rounded-lg" title="Посмотреть логи"><Activity className="w-4 h-4" /></button><button onClick={() => killSession(s.token)} className={`p-2 rounded-lg transition-all ${deletedToken === s.token ? "text-emerald-300 bg-emerald-500/10" : "text-zinc-400 hover:text-red-300 bg-zinc-800"}`} title="Отозвать">{deletedToken === s.token ? <Check className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}</button></div></td>
                 </tr>
               ))}
             </tbody>

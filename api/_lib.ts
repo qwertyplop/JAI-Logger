@@ -201,6 +201,19 @@ export async function deleteSession(token: string) {
   await redisPipeline(commands);
 }
 
+
+export async function clearAllSessions() {
+  const tokens = await redis<string[]>(["ZRANGE", sessionsIndexKey, 0, -1]);
+  const commands: unknown[][] = [["DEL", sessionsIndexKey]];
+  for (const token of tokens) {
+    const session = await getSession(token);
+    commands.push(["DEL", sessionKey(token)]);
+    if (session) commands.push(["DEL", logsKey(session.sessionId)]);
+  }
+  await redisPipeline(commands);
+  return tokens.length;
+}
+
 export async function listSessions(): Promise<Array<AccessSession & { remainingTime: number; logCount: number; connectedClients: number }>> {
   await redis(["ZREMRANGEBYSCORE", sessionsIndexKey, 0, Date.now()]);
   const tokens = await redis<string[]>(["ZRANGE", sessionsIndexKey, 0, -1]);
