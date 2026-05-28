@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://ASuLM-jai-proxy-api.hf.space/api/$1"
+      "destination": "https://ASuLM-jai-proxy-api.hf.space/$1"
     },
     {
       "source": "/(.*)",
