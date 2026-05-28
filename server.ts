@@ -1,8 +1,8 @@
-
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import pino from "pino";
 import pinoHttp from "pino-http";
+import path from "path";
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -13,26 +13,8 @@ const app = express();
 app.use(pinoHttp({ logger }));
 app.use(cors());
 
-// Middleware to strip /api prefix from all requests
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    req.url = req.url.replace(/^\/api/, '');
-  }
-  next();
-});
-
-// For proxy routes, capture raw body as text so we forward it faithfully
-app.use("/api/proxy", (req: Request, res: Response, next: (err?: any) => void) => {
-  if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return next();
-  let data = "";
-  req.setEncoding("utf8");
-  req.on("data", (chunk) => { data += chunk; });
-  req.on("end", () => {
-    req.body = data;
-    next();
-  });
-});
-
+// Handle requests to /api as a separate namespace, 
+// but internally we keep the logic simple.
 app.use(express.json());
 
 interface LogEntry {
@@ -65,11 +47,13 @@ function broadcastToSession(sessionId: string, entry: LogEntry) {
   }
 }
 
+// --- API ROUTES ---
+
 // Health check
-app.get("/healthz", (req, res) => res.json({ status: "ok" }));
+app.get("/api/healthz", (req, res) => res.json({ status: "ok" }));
 
 // SSE stream
-app.get("/logs/stream", (req, res) => {
+app.get("/api/logs/stream", (req, res) => {
   const sessionId = req.query.session as string;
   if (!sessionId) return res.status(400).json({ error: "Missing session query param" });
 
@@ -97,21 +81,15 @@ app.get("/logs/stream", (req, res) => {
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection"]);
 
-// Global middleware to handle all proxy requests without path wildcards
-app.use(async (req: Request, res: Response, next: (err?: any) => void) => {
-  const path = req.path;
-  // Only handle paths that start with /proxy/
-  if (!path.startsWith("/proxy/")) {
-    return next();
+// Proxy handler
+app.use("/api/proxy", async (req: Request, res: Response) => {
+  const segments = req.path.split('/').filter(Boolean);
+  // Path is /api/proxy/:sessionId
+  if (segments.length < 3) {
+    return res.status(400).json({ error: "Invalid proxy path. Expected /api/proxy/:sessionId" });
   }
 
-  const segments = path.split('/').filter(Boolean);
-  // Expect: ["proxy", "sessionId", ...]
-  if (segments.length < 2) {
-    return res.status(400).json({ error: "Invalid proxy path. Expected /proxy/:sessionId" });
-  }
-
-  const sessionId = segments[1];
+  const sessionId = segments[2];
   const target = req.query.target as string;
 
   if (!target) {
@@ -204,6 +182,18 @@ app.use(async (req: Request, res: Response, next: (err?: any) => void) => {
   }
 });
 
-// Critical for Hugging Face: use port 7860 by default (or PORT env)
+// --- STATIC FILES ---
+
+const distPath = path.join(__dirname, "dist");
+app.use(express.static(distPath));
+
+// Catch-all for SPA
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api")) {
+    return res.status(404).json({ error: "API route not found" });
+  }
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
 const PORT = process.env.PORT || 7860; 
-app.listen(PORT, "0.0.0.0", () => logger.info(`Server started on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => logger.info(`🚀 Monolithic server started on port ${PORT}`));
