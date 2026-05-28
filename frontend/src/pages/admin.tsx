@@ -62,7 +62,8 @@ function AdminLogViewer({ session, logs, onClose }: { session: AccessSession; lo
 }
 
 export default function AdminPanel() {
-  const [secret, setSecret] = useState("");
+  const [secretWords, setSecretWords] = useState(Array(6).fill(""));
+  const secret = secretWords.join(" ").trim();
   const [isAuth, setIsAuth] = useState(false);
   const [sessions, setSessions] = useState<AccessSession[]>([]);
   const [error, setError] = useState("");
@@ -93,9 +94,38 @@ export default function AdminPanel() {
       setError("Неверная секретная фраза");
       return;
     }
-    setSecret("");
+    setSecretWords(Array(6).fill(""));
     setIsAuth(true);
     await loadSessions();
+  };
+
+  const updateSecretWord = (index: number, value: string) => {
+    const words = value.trim().split(/\s+/).filter(Boolean);
+    setSecretWords((prev) => {
+      const next = [...prev];
+      if (words.length > 1) {
+        words.slice(0, 6 - index).forEach((word, offset) => {
+          next[index + offset] = word;
+        });
+      } else {
+        next[index] = value.replace(/\s/g, "");
+      }
+      return next;
+    });
+    if (words.length > 1) {
+      const target = Math.min(5, index + words.length - 1);
+      requestAnimationFrame(() => document.getElementById(`secret-word-${target}`)?.focus());
+    } else if (value && index < 5) {
+      requestAnimationFrame(() => document.getElementById(`secret-word-${index + 1}`)?.focus());
+    }
+  };
+
+  const handleSecretKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Backspace" && !secretWords[index] && index > 0) {
+      document.getElementById(`secret-word-${index - 1}`)?.focus();
+      return;
+    }
+    if (event.key === "Enter") checkAuth();
   };
 
   const generateLink = async () => {
@@ -155,7 +185,24 @@ export default function AdminPanel() {
           <h1 className="text-2xl font-bold mb-2 text-center">JAI Admin</h1>
           <p className="text-zinc-500 text-center text-sm mb-8">Введите неизменяемую фразу из 6 слов</p>
           <div className="space-y-5">
-            <input type="password" className="w-full p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder-zinc-600" placeholder="6-word secret phrase" value={secret} onChange={(e) => setSecret(e.target.value)} onKeyDown={(e) => e.key === "Enter" && checkAuth()} />
+            <div className="grid grid-cols-2 gap-3">
+              {secretWords.map((word, index) => (
+                <label key={index} className="group flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                  <span className="w-5 text-xs font-mono text-zinc-600">{index + 1}</span>
+                  <input
+                    id={`secret-word-${index}`}
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="min-w-0 flex-1 bg-transparent text-zinc-100 outline-none placeholder-zinc-700"
+                    placeholder="word"
+                    value={word}
+                    onChange={(e) => updateSecretWord(index, e.target.value)}
+                    onKeyDown={(e) => handleSecretKeyDown(index, e)}
+                  />
+                </label>
+              ))}
+            </div>
             <button onClick={checkAuth} className="w-full py-3 bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-bold rounded-xl transition-all active:scale-[0.98]">Войти</button>
             {error && <p className="text-red-400 text-center text-sm">{error}</p>}
           </div>
