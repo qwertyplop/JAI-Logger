@@ -160,7 +160,7 @@ app.all("/proxy/:sessionId*", async (req, res) => {
       res.send(body);
       broadcastToSession(sessionId, {
         id, timestamp, method: req.method, path: targetUrl,
-        requestHeaders, requestBody: raw laBody,
+        requestHeaders, requestBody: rawBody,
         responseStatus: upstreamRes.status, responseHeaders,
         responseBody: body.length > 50000 ? body.slice(0, 50000) : body,
         durationMs: Date.now() - startMs, isStream: false, error: null,
