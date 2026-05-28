@@ -30,7 +30,15 @@
       "destination": "/frontend/dist/opengraph.jpg"
     },
     {
-      "source": "/:path((?!api/.*).*)",
+      "source": "/admin",
+      "destination": "/frontend/dist/index.html"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/frontend/dist/index.html"
+    },
+    {
+      "source": "/",
       "destination": "/frontend/dist/index.html"
     }
   ]
