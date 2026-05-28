@@ -4,6 +4,7 @@ import pino from "pino";
 import pinoHttp from "pino-http";
 import path from "path";
 import crypto from "crypto";
+import net from "net";
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -126,6 +127,41 @@ function truncateText(value: string | null) {
   return value.length > MAX_CAPTURE_CHARS ? `${value.slice(0, MAX_CAPTURE_CHARS)}\n...[truncated]` : value;
 }
 
+function isPrivateIp(hostname: string) {
+  const ipVersion = net.isIP(hostname);
+  if (!ipVersion) return false;
+  if (ipVersion === 6) {
+    const normalized = hostname.toLowerCase();
+    return normalized === "::1" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80:");
+  }
+  const parts = hostname.split(".").map(Number);
+  const [a, b] = parts;
+  return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 0;
+}
+
+function validateProviderEndpoint(value: string): { ok: true; url: URL } | { ok: false; error: string } {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(value.trim());
+  } catch {
+    return { ok: false, error: "Invalid upstream URL." };
+  }
+
+  if (parsedUrl.protocol !== "https:") return { ok: false, error: "Only HTTPS provider endpoints are allowed." };
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || isPrivateIp(hostname)) {
+    return { ok: false, error: "Local or private network endpoints are not allowed." };
+  }
+
+  const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "");
+  if (!normalizedPath.endsWith("/chat/completions")) {
+    return { ok: false, error: "Endpoint must point to an OpenAI-compatible /chat/completions URL." };
+  }
+
+  return { ok: true, url: parsedUrl };
+}
+
 function storeLog(sessionId: string, entry: StoredLogEntry) {
   const logs = sessionLogs.get(sessionId) || [];
   logs.unshift(entry);
@@ -151,14 +187,6 @@ function getTokenFromProxyPath(req: Request) {
   if (!req.baseUrl.startsWith("/api/proxy")) return null;
   const firstSegment = req.path.split("/").filter(Boolean)[0];
   return firstSegment || null;
-}
-
-function getProxyPathSuffix(req: Request) {
-  if (!req.baseUrl.startsWith("/api/proxy")) return req.path;
-  const parts = req.path.split("/").filter(Boolean);
-  const tokenFromPath = getTokenFromProxyPath(req);
-  const suffixParts = tokenFromPath ? parts.slice(1) : parts;
-  return suffixParts.length ? `/${suffixParts.join("/")}` : "";
 }
 
 function getAccessSession(req: Request) {
@@ -255,18 +283,10 @@ app.post("/api/session/upstream", authGuard, jsonParser, (req: Request, res: Res
     return res.status(400).json({ error: "Upstream URL is required." });
   }
 
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(upstreamUrl.trim());
-  } catch {
-    return res.status(400).json({ error: "Invalid upstream URL." });
-  }
+  const validation = validateProviderEndpoint(upstreamUrl);
+  if (!validation.ok) return res.status(400).json({ error: validation.error });
 
-  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-    return res.status(400).json({ error: "Only http and https upstream URLs are allowed." });
-  }
-
-  session.upstreamUrl = parsedUrl.href;
+  session.upstreamUrl = validation.url.href;
   res.json({ session });
 });
 
@@ -307,16 +327,16 @@ const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding",
 
 app.use("/api/proxy", async (req: Request, res: Response) => {
   const session = (req as any).accessSession as AccessSession;
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Only POST requests to /chat/completions are allowed." });
   if (!session.upstreamUrl) {
     return res.status(400).json({ error: "Upstream URL is not configured for this session. Open the session link and set your provider endpoint first." });
   }
 
-  const targetUrl = new URL(session.upstreamUrl);
-  const suffix = getProxyPathSuffix(req);
+  const validation = validateProviderEndpoint(session.upstreamUrl);
+  if (!validation.ok) return res.status(400).json({ error: validation.error });
 
-  if (suffix) {
-    targetUrl.pathname = `${targetUrl.pathname.replace(/\/$/, "")}${suffix}`;
-  }
+  const targetUrl = new URL(validation.url.href);
 
   for (const [key, value] of Object.entries(req.query)) {
     if (key === "token") continue;

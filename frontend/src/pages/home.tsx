@@ -134,7 +134,9 @@ export default function Home() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold tracking-tight flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-400" />JAI Proxy Logger</h1>
-              <p className="text-sm text-zinc-500 mt-1">Сначала вставьте полный endpoint своего провайдера, например до /chat/completions. Потом скопируйте proxy endpoint в JanitorAI, SillyTavern или похожую платформу.</p>
+              <p className="text-zinc-400 mt-2 max-w-2xl">
+                Вставь полный HTTPS endpoint своего провайдера до <code className="text-emerald-300">/chat/completions</code>. Логгер будет пересылать только POST-запросы к этому конкретному endpoint и показывать request/response для отладки.
+              </p>
             </div>
             <Badge variant="outline" className="border-zinc-700 text-zinc-300">{session?.label || "User Session"}</Badge>
           </div>
@@ -154,7 +156,7 @@ export default function Home() {
                 <Input readOnly className="font-mono text-sm bg-zinc-950 border-emerald-500/30 text-emerald-200" value={proxyUrl} />
                 <Button size="icon" onClick={() => copyToClipboard(proxyUrl, "Proxy endpoint готов для вставки")}><Copy className="w-4 h-4" /></Button>
               </div>
-              <p className="text-xs text-zinc-500 flex items-center gap-1"><ExternalLink className="w-3 h-3" />Если клиент добавляет /v1/chat/completions сам, используйте endpoint без этого суффикса. Если нет — вставьте полный URL провайдера слева.</p>
+              <p className="text-zinc-500 text-sm mt-1">Скопируй этот URL в Janitor/SillyTavern как OpenAI-compatible endpoint. Все POST-запросы будут идти в сохраненный provider URL.</p>
             </div>
           </div>
         </div>
