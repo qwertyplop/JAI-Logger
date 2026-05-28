@@ -86,7 +86,7 @@ app.get("/logs/stream", (req, res) => {
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection"]);
 
-app.all("/proxy/:sessionId*", async (req, res) => {
+app.all("/proxy/:sessionId(.*)", async (req, res) => {
   const sessionId = req.params.sessionId;
   const target = req.query.target as string;
 
