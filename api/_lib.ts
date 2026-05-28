@@ -10,6 +10,28 @@ export const DEFAULT_ADMIN_SECRET_HASH = "ce34128fd5efe2e4fdf4725ee5268992db7f4d
 export const ADMIN_SECRET_HASH = (process.env.ADMIN_SECRET_HASH || DEFAULT_ADMIN_SECRET_HASH).trim().toLowerCase();
 export const ADMIN_SECRET = process.env.ADMIN_SECRET?.trim();
 
+
+export type VercelRequestLike = Request & {
+  headers: Headers | Record<string, string | string[] | undefined>;
+  query?: Record<string, string | string[] | undefined>;
+  url: string;
+};
+
+export function headerValue(req: Request, name: string) {
+  const headers: any = req.headers;
+  if (headers?.get) return headers.get(name) || headers.get(name.toLowerCase());
+  const value = headers?.[name] ?? headers?.[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export function queryValue(req: Request, name: string) {
+  const query = (req as VercelRequestLike).query;
+  const value = query?.[name];
+  if (Array.isArray(value)) return value[0];
+  if (typeof value === "string") return value;
+  return requestUrl(req).searchParams.get(name) || undefined;
+}
+
 export interface AccessSession {
   token: string;
   sessionId: string;
@@ -124,7 +146,7 @@ export async function isAdmin(cookieHeader = "") {
 }
 
 export async function requireAdmin(req: Request) {
-  if (!(await isAdmin(req.headers.get("cookie") || ""))) return json({ error: "Admin authorization required." }, 401);
+  if (!(await isAdmin(headerValue(req, "cookie") || ""))) return json({ error: "Admin authorization required." }, 401);
   return null;
 }
 
@@ -186,13 +208,29 @@ export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
 }
 
 export async function readJson(req: Request): Promise<any> {
-  try { return await req.json(); } catch { return {}; }
+  const anyReq: any = req;
+  if (typeof anyReq.json === "function") {
+    try { return await anyReq.json(); } catch { return {}; }
+  }
+  if (anyReq.body && typeof anyReq.body === "object") return anyReq.body;
+  if (typeof anyReq.body === "string") {
+    try { return JSON.parse(anyReq.body); } catch { return {}; }
+  }
+  return {};
+}
+
+export async function readBodyBuffer(req: Request): Promise<Buffer> {
+  const anyReq: any = req;
+  if (typeof anyReq.arrayBuffer === "function") return Buffer.from(await anyReq.arrayBuffer());
+  const chunks: Buffer[] = [];
+  for await (const chunk of anyReq) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  return Buffer.concat(chunks);
 }
 
 export function getPublicOrigin(req: Request) {
   if (process.env.PUBLIC_ORIGIN) return process.env.PUBLIC_ORIGIN;
-  const proto = req.headers.get("x-forwarded-proto") || "https";
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost";
+  const proto = headerValue(req, "x-forwarded-proto") || "https";
+  const host = headerValue(req, "x-forwarded-host") || headerValue(req, "host") || "localhost";
   return `${proto}://${host}`;
 }
 
@@ -202,14 +240,14 @@ export function requestUrl(req: Request) {
 
 export function routeParts(req: Request) {
   const url = requestUrl(req);
-  const explicitPath = url.searchParams.get("path");
+  const explicitPath = queryValue(req, "path");
   const pathname = explicitPath ? `/${explicitPath}` : url.pathname;
   const parts = pathname.split("/").filter(Boolean);
   return parts[0] === "api" ? parts.slice(1) : parts;
 }
 
 export function getQueryToken(req: Request) {
-  return requestUrl(req).searchParams.get("token") || req.headers.get("x-access-token");
+  return queryValue(req, "token") || headerValue(req, "x-access-token");
 }
 
 export function getPathToken(req: Request, prefix: string) {

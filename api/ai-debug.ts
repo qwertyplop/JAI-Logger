@@ -1,4 +1,4 @@
-import { getPathToken, requestUrl, getSession, json, newToken, redactHeaders, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
+import { getPathToken, requestUrl, getSession, json, newToken, readBodyBuffer, redactHeaders, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
@@ -24,7 +24,7 @@ export default async function handler(req: Request) {
   const id = `${Date.now()}-${newToken(6)}`;
   const timestamp = new Date().toISOString();
   const startMs = Date.now();
-  const bodyBuffer = Buffer.from(await req.arrayBuffer());
+  const bodyBuffer = await readBodyBuffer(req);
   const rawBody = bodyBuffer.length ? bodyBuffer.toString("utf8") : null;
   const requestHeaders: Record<string, string> = {};
   const forwardHeaders: Record<string, string> = {};

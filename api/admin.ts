@@ -1,4 +1,4 @@
-import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, verifyAdminSecret } from "./_lib";
+import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, verifyAdminSecret } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
@@ -18,7 +18,7 @@ export default async function handler(req: Request) {
     return json({ ok: true }, 200, { "Set-Cookie": `${ADMIN_COOKIE}=; HttpOnly; SameSite=Lax; Secure; Path=/; Max-Age=0` });
   }
 
-  if (method === "GET" && parts[0] === "me") return json({ authenticated: await isAdmin(req.headers.get("cookie") || "") });
+  if (method === "GET" && parts[0] === "me") return json({ authenticated: await isAdmin(headerValue(req, "cookie") || "") });
 
   const adminError = await requireAdmin(req);
   if (adminError) return adminError;
