@@ -18,7 +18,7 @@ async function handle(req: Request) {
   const targetUrl = new URL(validation.url.href);
   const sourceUrl = requestUrl(req);
   for (const [key, value] of sourceUrl.searchParams.entries()) {
-    if (key !== "token") targetUrl.searchParams.append(key, value);
+    if (key !== "token" && key !== "path") targetUrl.searchParams.append(key, value);
   }
 
   const id = `${Date.now()}-${newToken(6)}`;
