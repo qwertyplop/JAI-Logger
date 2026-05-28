@@ -5,20 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "tsx server.ts"
   },
   "dependencies": {
     "express": "^5.0.0",
     "cors": "^2.8.5",
     "pino": "^9.0.0",
-    "pino-http": "^10.0.0"
+    "pino-http": "^10.0.0",
+    "tsx": "^4.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0"
+    "typescript": "^5.0.0"
   }
 }
