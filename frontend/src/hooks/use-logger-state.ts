@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AccessSession, LogEntry } from "../types";
 
-export type ConnectionStatus = "Connected" | "Reconnecting..." | "Disconnected";
+export type ConnectionStatus = "Connected" | "Reconnecting..." | "Disconnected" | "Revoked";
 
 function getAccessToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -35,7 +35,17 @@ export function useLoggerState() {
     try {
       const res = await fetch(`/api/logs/history?token=${encodeURIComponent(accessToken)}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load history");
+      if (!res.ok) {
+        if (res.status === 403) {
+          localStorage.removeItem("jai_debug_access_token");
+          localStorage.removeItem("jai_debug_logs");
+          setSession(null);
+          setLogs([]);
+          setStatus("Revoked");
+          return;
+        }
+        throw new Error(data.error || "Failed to load history");
+      }
       setSession(data.session);
       setLogs(data.logs || []);
       setStatus("Connected");
@@ -52,7 +62,16 @@ export function useLoggerState() {
       body: JSON.stringify({ upstreamUrl }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Не удалось сохранить upstream URL");
+    if (!res.ok) {
+      if (res.status === 403) {
+        localStorage.removeItem("jai_debug_access_token");
+        localStorage.removeItem("jai_debug_logs");
+        setSession(null);
+        setLogs([]);
+        setStatus("Revoked");
+      }
+      throw new Error(data.error || "Не удалось сохранить upstream URL");
+    }
     setSession(data.session);
     return data.session as AccessSession;
   }, [accessToken]);

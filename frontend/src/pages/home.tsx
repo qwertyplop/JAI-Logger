@@ -145,6 +145,18 @@ export default function Home() {
     if (session?.upstreamUrl && !upstreamDraft) setUpstreamDraft(session.upstreamUrl);
   }, [session?.upstreamUrl, upstreamDraft]);
 
+  if (status === "Revoked") {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
+        <div className="max-w-md text-center border border-red-900/60 bg-red-950/20 rounded-3xl p-8">
+          <AlertCircle className="w-12 h-12 text-red-300 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Сессия отозвана или истекла</h1>
+          <p className="text-zinc-400 text-sm">Эта временная ссылка больше не работает. Запросы через старый endpoint будут получать 403 и не будут уходить к провайдеру.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!accessToken) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
