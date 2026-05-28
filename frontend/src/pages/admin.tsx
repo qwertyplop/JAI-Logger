@@ -197,12 +197,6 @@ export default function AdminPanel() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!isAuth || sessions.length === 0) return;
-    const interval = window.setInterval(() => loadSessions(), 15 * 60 * 1000);
-    return () => window.clearInterval(interval);
-  }, [isAuth, sessions.length]);
-
   const copy = async (value: string) => {
     if (!value) return;
     await navigator.clipboard.writeText(value);
