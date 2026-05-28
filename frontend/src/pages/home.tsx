@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLoggerState } from "@/hooks/use-logger-state";
-import { Copy, Trash2, Activity, AlertCircle, ChevronDown, ChevronRight, ShieldCheck, RadioTower, ExternalLink } from "lucide-react";
+import { Check, Copy, Trash2, Activity, AlertCircle, ChevronDown, ChevronRight, ShieldCheck, RadioTower, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -92,23 +92,53 @@ export default function Home() {
   const { toast } = useToast();
   const [upstreamDraft, setUpstreamDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState<"provider" | "debug" | null>(null);
+  const [savedOk, setSavedOk] = useState(false);
+  const [refreshedOk, setRefreshedOk] = useState(false);
+  const [clearedOk, setClearedOk] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const debugUrl = accessToken ? `${window.location.origin}/api/ai-debug/${encodeURIComponent(accessToken)}` : "";
 
-  const copyToClipboard = (value: string, label: string) => {
+  const flash = (setter: (value: boolean) => void) => {
+    setter(true);
+    window.setTimeout(() => setter(false), 1600);
+  };
+
+  const copyToClipboard = (value: string, label: string, key: "provider" | "debug") => {
     if (!value) return;
-    navigator.clipboard.writeText(value).then(() => toast({ title: "Скопировано", description: label }));
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(key);
+      window.setTimeout(() => setCopied((current) => current === key ? null : current), 1600);
+      toast({ title: "Скопировано", description: label });
+    });
   };
 
   const handleSaveUpstream = async () => {
     setSaving(true);
     try {
       await saveUpstreamUrl(upstreamDraft);
+      flash(setSavedOk);
       toast({ title: "Endpoint сохранен", description: "Теперь можно отправлять AI-запросы через debug endpoint." });
     } catch (error) {
       toast({ title: "Ошибка", description: error instanceof Error ? error.message : "Не удалось сохранить URL", variant: "destructive" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRefreshLogs = async () => {
+    setRefreshing(true);
+    try {
+      await refreshLogs();
+      flash(setRefreshedOk);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleClearLogs = () => {
+    clearLogs();
+    flash(setClearedOk);
   };
 
   useEffect(() => {
@@ -146,15 +176,15 @@ export default function Home() {
               <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Ваш provider endpoint</label>
               <div className="flex gap-2">
                 <Input className="font-mono text-sm bg-zinc-950 border-zinc-800" placeholder="https://provider.example/v1/chat/completions" value={upstreamDraft || session?.upstreamUrl || ""} onChange={(e) => setUpstreamDraft(e.target.value)} />
-                <Button onClick={handleSaveUpstream} disabled={saving} className="shrink-0">{saving ? "..." : "Сохранить"}</Button>
-                <Button size="icon" variant="secondary" onClick={() => copyToClipboard(session?.upstreamUrl || "", "Provider endpoint скопирован")}><Copy className="w-4 h-4" /></Button>
+                <Button onClick={handleSaveUpstream} disabled={saving} className="shrink-0 min-w-28">{saving ? "..." : savedOk ? <span className="inline-flex items-center gap-1"><Check className="w-4 h-4" />Готово</span> : "Сохранить"}</Button>
+                <Button size="icon" variant="secondary" onClick={() => copyToClipboard(session?.upstreamUrl || "", "Provider endpoint скопирован", "provider")} title="Скопировать provider endpoint">{copied === "provider" ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}</Button>
               </div>
             </div>
             <div className="space-y-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
               <label className="text-xs font-mono text-emerald-300 uppercase tracking-wider flex items-center gap-2"><RadioTower className="w-3 h-3" />AI debug endpoint</label>
               <div className="flex gap-2">
                 <Input readOnly className="font-mono text-sm bg-zinc-950 border-emerald-500/30 text-emerald-200" value={debugUrl} />
-                <Button size="icon" onClick={() => copyToClipboard(debugUrl, "AI debug endpoint готов для вставки")}><Copy className="w-4 h-4" /></Button>
+                <Button size="icon" onClick={() => copyToClipboard(debugUrl, "AI debug endpoint готов для вставки", "debug")} title="Скопировать AI debug endpoint">{copied === "debug" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}</Button>
               </div>
               <p className="text-zinc-500 text-sm mt-1">Скопируй этот URL в Janitor/SillyTavern как OpenAI-compatible endpoint. Все POST-запросы будут идти в сохраненный provider URL.</p>
             </div>
@@ -167,8 +197,8 @@ export default function Home() {
           <div className="flex items-center justify-between p-4 border-b border-zinc-800/70 sticky top-0 bg-zinc-950/95 backdrop-blur z-10">
             <h2 className="text-sm font-semibold font-mono tracking-tight flex items-center gap-2">Логи запросов <Badge variant="secondary" className="font-mono text-xs">{logs.length}</Badge></h2>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={refreshLogs} className="h-8 text-xs font-mono">Обновить</Button>
-              <Button variant="ghost" size="sm" onClick={clearLogs} className="text-zinc-500 hover:text-red-300 h-8 text-xs font-mono"><Trash2 className="w-4 h-4 mr-2" />Очистить локально</Button>
+              <Button variant="secondary" size="sm" onClick={handleRefreshLogs} disabled={refreshing} className="h-8 text-xs font-mono min-w-28">{refreshing ? <span className="inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5 animate-spin" />...</span> : refreshedOk ? <span className="inline-flex items-center gap-2"><Check className="w-3.5 h-3.5" />Готово</span> : "Обновить"}</Button>
+              <Button variant="ghost" size="sm" onClick={handleClearLogs} className="text-zinc-500 hover:text-red-300 h-8 text-xs font-mono min-w-40">{clearedOk ? <><Check className="w-4 h-4 mr-2 text-emerald-300" />Очищено</> : <><Trash2 className="w-4 h-4 mr-2" />Очистить локально</>}</Button>
             </div>
           </div>
           <div className="flex-1 overflow-auto rounded-b-2xl border-x border-zinc-800/60">
