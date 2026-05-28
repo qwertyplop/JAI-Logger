@@ -3,19 +3,19 @@
   "rewrites": [
     {
       "source": "/api/admin/:path*",
-      "destination": "/api/admin"
+      "destination": "/api/admin?path=:path*"
     },
     {
       "source": "/api/session/:path*",
-      "destination": "/api/session"
+      "destination": "/api/session?path=:path*"
     },
     {
       "source": "/api/logs/:path*",
-      "destination": "/api/logs"
+      "destination": "/api/logs?path=:path*"
     },
     {
       "source": "/api/ai-debug/:path*",
-      "destination": "/api/ai-debug"
+      "destination": "/api/ai-debug?path=:path*"
     },
     {
       "source": "/((?!api/.*).*)",

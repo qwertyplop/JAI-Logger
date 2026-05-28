@@ -30,12 +30,27 @@ export function headerValue(req: Request, name: string) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function queryValue(req: Request, name: string) {
-  const query = (req as VercelRequestLike).query;
-  const value = query?.[name];
+function firstQueryValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0];
   if (typeof value === "string") return value;
-  return requestUrl(req).searchParams.get(name) || undefined;
+  return undefined;
+}
+
+export function queryValue(req: Request, name: string) {
+  const query = (req as VercelRequestLike).query;
+  const direct = firstQueryValue(query?.[name]);
+  if (direct) return name === "path" ? direct.split("?")[0] : direct;
+
+  const fromUrl = requestUrl(req).searchParams.get(name);
+  if (fromUrl) return fromUrl;
+
+  const pathValue = firstQueryValue(query?.path);
+  if (pathValue?.includes("?")) {
+    const queryPart = pathValue.slice(pathValue.indexOf("?") + 1);
+    const fromPath = new URLSearchParams(queryPart).get(name);
+    if (fromPath) return fromPath;
+  }
+  return undefined;
 }
 
 export interface AccessSession {
@@ -297,7 +312,7 @@ export function requestUrl(req: Request) {
 export function routeParts(req: Request) {
   const url = requestUrl(req);
   const explicitPath = queryValue(req, "path");
-  if (explicitPath) return explicitPath.split("/").filter(Boolean);
+  if (explicitPath) return explicitPath.split("?")[0].split("/").filter(Boolean);
   const parts = url.pathname.split("/").filter(Boolean);
   return parts[0] === "api" ? parts.slice(1) : parts;
 }
@@ -322,8 +337,10 @@ export function getQueryToken(req: Request) {
 
 export function getPathToken(req: Request, prefix: string) {
   const prefixParts = prefix.split("/").filter(Boolean);
+  const lastPrefix = prefixParts[prefixParts.length - 1];
   const parts = routeParts(req);
-  return parts[prefixParts.length] || null;
+  if (parts[0] === lastPrefix) return parts[1] || null;
+  return parts[0] || null;
 }
 
 export function redactHeaders(headers: Record<string, string>) {
