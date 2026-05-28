@@ -1,5 +1,5 @@
 {
-  "name": "jai-proxy-frontend",
+  "name": "jai-request-debugger-frontend",
   "version": "0.0.1",
   "private": true,
   "type": "module",

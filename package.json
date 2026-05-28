@@ -1,8 +1,8 @@
 {
-  "name": "jai-logger-monolith",
+  "name": "jai-request-debugger",
   "version": "1.0.0",
   "private": true,
-  "description": "Monolithic JAI-Logger with Express and React",
+  "description": "Temporary AI request debugger with Express and React admin panel",
   "scripts": {
     "dev": "tsx server.ts",
     "build:frontend": "cd frontend && pnpm install && pnpm run build",

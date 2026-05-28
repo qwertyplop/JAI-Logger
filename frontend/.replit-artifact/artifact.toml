@@ -1,8 +1,8 @@
 kind = "web"
 previewPath = "/"
-title = "AI Proxy Logger"
+title = "JAI Request Debugger"
 version = "1.0.0"
-id = "artifacts/proxy-logger"
+id = "artifacts/request-debugger"
 router = "path"
 
 [[integratedSkills]]
@@ -15,11 +15,11 @@ paths = [ "/" ]
 localPort = 19302
 
 [services.development]
-run = "pnpm --filter @workspace/proxy-logger run dev"
+run = "pnpm --filter jai-request-debugger-frontend run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/proxy-logger", "run", "build" ]
-publicDir = "artifacts/proxy-logger/dist/public"
+build = [ "pnpm", "--filter", "jai-request-debugger-frontend", "run", "build" ]
+publicDir = "artifacts/request-debugger/dist/public"
 serve = "static"
 
 [[services.production.rewrites]]

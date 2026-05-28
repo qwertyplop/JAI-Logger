@@ -92,7 +92,7 @@ export default function Home() {
   const { toast } = useToast();
   const [upstreamDraft, setUpstreamDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const proxyUrl = accessToken ? `${window.location.origin}/api/proxy/${encodeURIComponent(accessToken)}` : "";
+  const debugUrl = accessToken ? `${window.location.origin}/api/ai-debug/${encodeURIComponent(accessToken)}` : "";
 
   const copyToClipboard = (value: string, label: string) => {
     if (!value) return;
@@ -103,7 +103,7 @@ export default function Home() {
     setSaving(true);
     try {
       await saveUpstreamUrl(upstreamDraft);
-      toast({ title: "Upstream сохранен", description: "Теперь можно отправлять запросы через proxy endpoint." });
+      toast({ title: "Endpoint сохранен", description: "Теперь можно отправлять AI-запросы через debug endpoint." });
     } catch (error) {
       toast({ title: "Ошибка", description: error instanceof Error ? error.message : "Не удалось сохранить URL", variant: "destructive" });
     } finally {
@@ -120,8 +120,8 @@ export default function Home() {
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
         <div className="max-w-md rounded-3xl border border-zinc-800 bg-zinc-900/70 p-8 shadow-2xl text-center">
           <ShieldCheck className="w-10 h-10 mx-auto text-zinc-500 mb-4" />
-          <h1 className="text-2xl font-bold mb-2">JAI Proxy Logger</h1>
-          <p className="text-zinc-400 text-sm">Нужна временная сессионная ссылка из админ-панели. Откройте ссылку вида <span className="font-mono text-zinc-200">/?token=...</span>.</p>
+          <h1 className="text-2xl font-bold mb-2">JAI Request Debugger</h1>
+          <p className="text-zinc-500">Откройте временную ссылку, которую выдал администратор.</p>
         </div>
       </div>
     );
@@ -133,7 +133,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto space-y-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-400" />JAI Proxy Logger</h1>
+              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-400" />JAI Request Debugger</h1>
               <p className="text-zinc-400 mt-2 max-w-2xl">
                 Вставь полный HTTPS endpoint своего провайдера до <code className="text-emerald-300">/chat/completions</code>. Логгер будет пересылать только POST-запросы к этому конкретному endpoint и показывать request/response для отладки.
               </p>
@@ -151,10 +151,10 @@ export default function Home() {
               </div>
             </div>
             <div className="space-y-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-              <label className="text-xs font-mono text-emerald-300 uppercase tracking-wider flex items-center gap-2"><RadioTower className="w-3 h-3" />Proxy endpoint</label>
+              <label className="text-xs font-mono text-emerald-300 uppercase tracking-wider flex items-center gap-2"><RadioTower className="w-3 h-3" />AI debug endpoint</label>
               <div className="flex gap-2">
-                <Input readOnly className="font-mono text-sm bg-zinc-950 border-emerald-500/30 text-emerald-200" value={proxyUrl} />
-                <Button size="icon" onClick={() => copyToClipboard(proxyUrl, "Proxy endpoint готов для вставки")}><Copy className="w-4 h-4" /></Button>
+                <Input readOnly className="font-mono text-sm bg-zinc-950 border-emerald-500/30 text-emerald-200" value={debugUrl} />
+                <Button size="icon" onClick={() => copyToClipboard(debugUrl, "AI debug endpoint готов для вставки")}><Copy className="w-4 h-4" /></Button>
               </div>
               <p className="text-zinc-500 text-sm mt-1">Скопируй этот URL в Janitor/SillyTavern как OpenAI-compatible endpoint. Все POST-запросы будут идти в сохраненный provider URL.</p>
             </div>
@@ -170,7 +170,7 @@ export default function Home() {
           </div>
           <div className="flex-1 overflow-auto rounded-b-2xl border-x border-zinc-800/60">
             {logs.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-500 space-y-4"><AlertCircle className="w-8 h-8 opacity-25" /><p className="text-sm font-mono opacity-70">Пока нет трафика. Сохраните provider endpoint и сделайте запрос через proxy endpoint.</p></div>
+              <div className="h-full flex flex-col items-center justify-center text-zinc-500 space-y-4"><AlertCircle className="w-8 h-8 opacity-25" /><p className="text-sm font-mono opacity-70">Пока нет трафика. Сохраните provider endpoint и сделайте POST-запрос через AI debug endpoint.</p></div>
             ) : <div className="flex flex-col pb-10">{logs.map((log) => <LogItem key={log.id} entry={log} />)}</div>}
           </div>
         </div>

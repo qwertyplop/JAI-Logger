@@ -1,5 +1,5 @@
 ---
-title: JAI Proxy Logger
+title: JAI Request Debugger
 emoji: 🚀
 colorFrom: blue
 colorTo: purple
@@ -7,50 +7,48 @@ sdk: docker
 pinned: false
 ---
 
-# JAI Proxy Logger
+# JAI Request Debugger
 
-Прокси-логгер с админ-панелью для JanitorAI, SillyTavern и похожих клиентов.
+Временный debug-инструмент для просмотра request/response payloads от JanitorAI, SillyTavern и похожих OpenAI-compatible клиентов.
 
 ## Как работает
 
 1. Админ открывает `/admin` и входит по неизменяемой секретной фразе из 6 слов.
-2. В админке создается временная сессионная ссылка для конечного пользователя.
-3. Пользователь открывает сессионную ссылку и сам указывает полный endpoint своего провайдера — например URL до `/chat/completions`.
-4. Пользователь копирует proxy endpoint и вставляет его в JanitorAI / SillyTavern / другой клиент.
-5. Клиент отправляет запросы через логгер, логгер проксирует их на endpoint пользователя и сохраняет request/response в памяти.
-6. Пользователь видит свои логи на сессионной странице, админ может открыть логи любой активной сессии.
+2. В админке создается временная debug-ссылка для конечного пользователя.
+3. Пользователь открывает ссылку и сам указывает полный HTTPS endpoint своего AI-провайдера — например URL до `/v1/chat/completions`.
+4. Пользователь копирует AI debug endpoint и временно вставляет его в JanitorAI / SillyTavern / другой клиент.
+5. Клиент отправляет POST-запросы через debug endpoint; приложение пересылает их только на заранее сохраненный `/chat/completions` endpoint пользователя и показывает request/response логи.
 
-Сессии и логи специально хранятся только в памяти процесса: это временный debugging-инструмент, а не долговременное хранилище. После рестарта Hugging Face Space они сбрасываются.
-
-## Основные маршруты
+## API
 
 - `/admin` — админ-панель.
-- `/?token=<session-token>` — пользовательская страница временной сессии.
-- `/api/session/upstream?token=<session-token>` — сохранение endpoint провайдера для сессии.
-- `/api/proxy/<session-token>` — proxy endpoint, удобный для вставки в клиенты.
-- `/api/proxy?token=<session-token>` — альтернативный proxy endpoint.
-- `/api/logs/history?token=<session-token>` — история логов сессии.
-- `/api/logs/stream?token=<session-token>` — SSE поток новых логов.
+- `/api/admin/login` — вход админа, ставит HttpOnly cookie.
+- `/api/admin/sessions` — создать временную debug-сессию.
+- `/api/session` — данные текущей пользовательской сессии.
+- `/api/session/upstream` — сохранить provider endpoint для текущей сессии.
+- `/api/ai-debug/<session-token>` — AI debug endpoint для вставки в клиент.
+- `/api/logs/stream?token=<session-token>` — SSE поток логов.
+- `/api/logs/history?token=<session-token>` — история логов текущей сессии.
 
 ## Ограничения безопасности
 
-Проект специально не является универсальным open proxy:
+Инструмент ограничен только debug-сценарием для AI chat completions:
 
 - принимаются только HTTPS endpoints;
 - endpoint должен заканчиваться на `/chat/completions`;
-- локальные/private network адреса запрещены;
-- проксируются только POST-запросы к сохраненному endpoint;
-- сессии временные;
+- localhost, private network и link-local адреса запрещены;
+- пересылаются только POST-запросы;
+- пересылка идет только к сохраненному endpoint, без произвольных путей;
+- сессии временные, максимум 60 минут;
 - логи живут только в памяти процесса и нужны для дебага.
 
-## Безопасность
+## Admin secret
 
-- Админ-фраза не хранится открытым текстом: сервер сравнивает SHA-256 hash.
-- После входа админ получает HttpOnly cookie; пароль не передается в URL.
-- Пользовательские ссылки временные и могут быть отозваны из админки.
-- Authorization / API-key-like headers скрываются в списке headers, но тело request/response логируется полностью — это ожидаемое поведение для debugging.
+В production открытая фраза не хранится в коде. Сервер проверяет SHA-256 hash фразы.
 
-## Локальная разработка
+Текущая фраза известна владельцу проекта. Для смены фразы нужно заменить `ADMIN_SECRET_HASH` в `server.ts`.
+
+## Локальный запуск
 
 ```bash
 pnpm install
@@ -59,14 +57,11 @@ pnpm -C frontend run build
 pnpm start
 ```
 
-Проверки:
+Откройте:
 
-```bash
-pnpm exec tsc --noEmit
-pnpm -C frontend run typecheck
-pnpm -C frontend run build
-```
+- `http://localhost:7860/admin`
+- `http://localhost:7860/`
 
 ## Hugging Face Spaces
 
-Проект рассчитан на Docker Space. `Dockerfile` собирает фронтенд и запускает Express сервер на `PORT` или `7860`.
+Проект рассчитан на Docker Space. Dockerfile собирает Vite frontend и запускает Express server на `PORT` / `7860`.

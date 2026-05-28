@@ -7,12 +7,9 @@ const durationOptions = [
   { value: 15, label: "15 минут" },
   { value: 30, label: "30 минут" },
   { value: 60, label: "1 час" },
-  { value: 1440, label: "24 часа" },
-  { value: -1, label: "Бессрочно" },
 ];
 
 function formatRemaining(ms = 0) {
-  if (ms > 1000 * 60 * 60 * 24 * 365) return "Бессрочно";
   const minutes = Math.max(0, Math.floor(ms / 60000));
   const seconds = Math.max(0, Math.floor((ms % 60000) / 1000));
   if (minutes >= 60) return `${Math.floor(minutes / 60)}ч ${minutes % 60}м`;
@@ -174,7 +171,7 @@ export default function AdminPanel() {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-4xl font-black tracking-tight text-white flex items-center gap-3"><Activity className="w-8 h-8 text-emerald-400" />JAI Admin</h1>
-            <p className="text-zinc-500 mt-1">Генерация временных ссылок и просмотр проксированных запросов. Provider endpoint пользователь указывает сам на своей сессионной странице.</p>
+            <p className="text-zinc-500 mt-1">Генерация временных debug-ссылок и просмотр AI request/response логов. Provider endpoint пользователь указывает сам на своей сессионной странице.</p>
           </div>
           <div className="flex gap-3"><button onClick={loadSessions} className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"><RefreshCw className="w-4 h-4" />Обновить</button><button onClick={logout} className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-300 flex items-center gap-2"><LogOut className="w-4 h-4" />Выйти</button></div>
         </header>

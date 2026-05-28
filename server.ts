@@ -17,13 +17,14 @@ app.use(cors());
 
 const jsonParser = express.json({ limit: "25mb" });
 const urlencodedParser = express.urlencoded({ extended: true, limit: "25mb" });
-const rawProxyParser = express.raw({ type: "*/*", limit: "25mb" });
+const rawBodyParser = express.raw({ type: "*/*", limit: "25mb" });
 
 const ADMIN_SECRET_HASH = "ce34128fd5efe2e4fdf4725ee5268992db7f4d00b71f8cd08823b1011e1e267a";
 const ADMIN_COOKIE = "jai_admin_session";
-const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-const MAX_LOGS_PER_SESSION = 500;
-const MAX_CAPTURE_CHARS = 200_000;
+const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const MAX_SESSION_TTL_MS = 60 * 60 * 1000;
+const MAX_LOGS_PER_SESSION = 200;
+const MAX_CAPTURE_CHARS = 80_000;
 
 interface AccessSession {
   token: string;
@@ -183,15 +184,15 @@ function broadcastToSession(sessionId: string, entry: StoredLogEntry) {
   }
 }
 
-function getTokenFromProxyPath(req: Request) {
-  if (!req.baseUrl.startsWith("/api/proxy")) return null;
+function getTokenFromDebugPath(req: Request) {
+  if (!req.baseUrl.startsWith("/api/ai-debug")) return null;
   const firstSegment = req.path.split("/").filter(Boolean)[0];
   return firstSegment || null;
 }
 
 function getAccessSession(req: Request) {
   pruneExpiredSessions();
-  const token = (req.query.token as string | undefined) || (req.headers["x-access-token"] as string | undefined) || getTokenFromProxyPath(req);
+  const token = (req.query.token as string | undefined) || (req.headers["x-access-token"] as string | undefined) || getTokenFromDebugPath(req);
   if (!token) return null;
   return accessSessions.get(token) || null;
 }
@@ -226,17 +227,22 @@ app.get("/api/admin/me", (req, res) => res.json({ authenticated: isAdmin(req) })
 
 app.post("/api/admin/sessions", requireAdmin, jsonParser, (req: Request, res: Response) => {
   const { durationMinutes = 30, label = "" } = req.body;
+  pruneExpiredSessions();
 
-  const normalizedDuration = Number(durationMinutes);
+  const requestedMinutes = Number(durationMinutes);
+  if (!Number.isFinite(requestedMinutes) || requestedMinutes <= 0) {
+    return res.status(400).json({ error: "Session duration must be between 1 and 60 minutes." });
+  }
+
+  const durationMs = Math.min(requestedMinutes * 60 * 1000, MAX_SESSION_TTL_MS);
   const token = newToken();
   const sessionId = newToken(12);
-  const expiresAt = normalizedDuration === -1 ? 2147483647000 : Date.now() + Math.max(1, normalizedDuration) * 60 * 1000;
   const session: AccessSession = {
     token,
     sessionId,
     upstreamUrl: "",
     label: typeof label === "string" ? label.trim().slice(0, 80) : "",
-    expiresAt,
+    expiresAt: Date.now() + durationMs,
     createdAt: Date.now(),
   };
 
@@ -291,7 +297,7 @@ app.post("/api/session/upstream", authGuard, jsonParser, (req: Request, res: Res
 });
 
 app.use("/api/logs", authGuard);
-app.use("/api/proxy", rawProxyParser, authGuard);
+app.use("/api/ai-debug", rawBodyParser, authGuard);
 
 app.get("/api/logs/history", (req, res) => {
   const session = (req as any).accessSession as AccessSession;
@@ -325,7 +331,7 @@ app.get("/api/logs/stream", (req, res) => {
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection", "x-access-token"]);
 
-app.use("/api/proxy", async (req: Request, res: Response) => {
+app.use(["/api/ai-debug"], async (req: Request, res: Response) => {
   const session = (req as any).accessSession as AccessSession;
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Only POST requests to /chat/completions are allowed." });
@@ -418,15 +424,16 @@ app.use("/api/proxy", async (req: Request, res: Response) => {
         durationMs: Date.now() - startMs, isStream: false, error: null,
       });
     }
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
+  } catch (err: any) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    logger.error({ err: errorMsg }, "AI debug forwarding failed");
     storeLog(session.sessionId, {
       id, timestamp, method: req.method, path: targetUrl.href,
       requestHeaders: redactHeaders(requestHeaders), requestBody: truncateText(rawBody),
       responseStatus: 502, responseHeaders: {}, responseBody: null,
       durationMs: Date.now() - startMs, isStream: false, error: errorMsg,
     });
-    res.status(502).json({ error: `Proxy error: ${errorMsg}` });
+    res.status(502).json({ error: `AI debug forwarding error: ${errorMsg}` });
   }
 });
 
@@ -439,4 +446,4 @@ app.get("*", (req, res) => {
 });
 
 const PORT = Number(process.env.PORT || 7860);
-app.listen(PORT, "0.0.0.0", () => logger.info(`🚀 JAI Proxy Logger started on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => logger.info(`🚀 JAI Request Debugger started on port ${PORT}`));

@@ -7,10 +7,10 @@ function getAccessToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
   const tokenFromUrl = urlParams.get("token");
   if (tokenFromUrl) {
-    localStorage.setItem("proxy_access_token", tokenFromUrl);
+    localStorage.setItem("jai_debug_access_token", tokenFromUrl);
     return tokenFromUrl;
   }
-  return localStorage.getItem("proxy_access_token");
+  return localStorage.getItem("jai_debug_access_token");
 }
 
 export function useLoggerState() {
@@ -18,7 +18,7 @@ export function useLoggerState() {
   const [session, setSession] = useState<AccessSession | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>(() => {
     try {
-      const raw = localStorage.getItem("proxy_logs");
+      const raw = localStorage.getItem("jai_debug_logs");
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -40,12 +40,12 @@ export function useLoggerState() {
   }, [accessToken]);
 
   useEffect(() => {
-    localStorage.setItem("proxy_logs", JSON.stringify(logs.slice(0, 500)));
+    localStorage.setItem("jai_debug_logs", JSON.stringify(logs.slice(0, 500)));
   }, [logs]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
-    localStorage.removeItem("proxy_logs");
+    localStorage.removeItem("jai_debug_logs");
   }, []);
 
   useEffect(() => {
