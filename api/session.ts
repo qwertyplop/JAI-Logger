@@ -1,10 +1,9 @@
-import { getQueryToken, getSession, json, readJson, saveSession, validateProviderEndpoint } from "./_lib";
+import { getQueryToken, getSession, json, routeParts, readJson, saveSession, validateProviderEndpoint } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
 export default async function handler(req: Request) {
-  const url = new URL(req.url);
-  const parts = url.pathname.split("/").filter(Boolean).slice(1);
+  const parts = routeParts(req);
   if (req.method.toUpperCase() !== "POST" || parts[0] !== "upstream") return json({ error: "API route not found" }, 404);
   const session = await getSession(getQueryToken(req));
   if (!session) return json({ error: "Access token expired or invalid." }, 403);

@@ -1,4 +1,4 @@
-import { getPathToken, getSession, json, newToken, redactHeaders, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
+import { getPathToken, requestUrl, getSession, json, newToken, redactHeaders, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
@@ -16,7 +16,7 @@ export default async function handler(req: Request) {
   if (validation.ok === false) return json({ error: validation.error }, 400);
 
   const targetUrl = new URL(validation.url.href);
-  const sourceUrl = new URL(req.url);
+  const sourceUrl = requestUrl(req);
   for (const [key, value] of sourceUrl.searchParams.entries()) {
     if (key !== "token") targetUrl.searchParams.append(key, value);
   }

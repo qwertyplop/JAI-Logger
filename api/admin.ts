@@ -1,10 +1,9 @@
-import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, isAdmin, json, listSessions, newToken, readJson, redis, requireAdmin, saveSession, verifyAdminSecret } from "./_lib";
+import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, verifyAdminSecret } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
 export default async function handler(req: Request) {
-  const url = new URL(req.url);
-  const parts = url.pathname.split("/").filter(Boolean).slice(1);
+  const parts = routeParts(req);
   const method = req.method.toUpperCase();
 
   if (method === "POST" && parts[0] === "login") {

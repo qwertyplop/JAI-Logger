@@ -190,17 +190,32 @@ export async function readJson(req: Request): Promise<any> {
 }
 
 export function getPublicOrigin(req: Request) {
-  return process.env.PUBLIC_ORIGIN || new URL(req.url).origin;
+  if (process.env.PUBLIC_ORIGIN) return process.env.PUBLIC_ORIGIN;
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost";
+  return `${proto}://${host}`;
+}
+
+export function requestUrl(req: Request) {
+  return new URL(req.url, getPublicOrigin(req));
+}
+
+export function routeParts(req: Request) {
+  const url = requestUrl(req);
+  const explicitPath = url.searchParams.get("path");
+  const pathname = explicitPath ? `/${explicitPath}` : url.pathname;
+  const parts = pathname.split("/").filter(Boolean);
+  return parts[0] === "api" ? parts.slice(1) : parts;
 }
 
 export function getQueryToken(req: Request) {
-  return new URL(req.url).searchParams.get("token") || req.headers.get("x-access-token");
+  return requestUrl(req).searchParams.get("token") || req.headers.get("x-access-token");
 }
 
 export function getPathToken(req: Request, prefix: string) {
-  const pathname = new URL(req.url).pathname;
-  const rest = pathname.slice(prefix.length).split("/").filter(Boolean);
-  return rest[0] || null;
+  const prefixParts = prefix.split("/").filter(Boolean);
+  const parts = routeParts(req);
+  return parts[prefixParts.length] || null;
 }
 
 export function redactHeaders(headers: Record<string, string>) {
