@@ -113,7 +113,15 @@ export function stripWrappingQuotes(value: string) {
 }
 
 export function normalizeSecret(value: string) {
-  return stripWrappingQuotes(value).trim().split(/\s+/).filter(Boolean).join(" ");
+  return stripWrappingQuotes(value)
+    .trim()
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function canonicalSecret(value: string) {
+  return normalizeSecret(value).toLowerCase();
 }
 
 export function sha256(value: string) {
@@ -121,7 +129,7 @@ export function sha256(value: string) {
 }
 
 export function sha256Lower(value: string) {
-  return crypto.createHash("sha256").update(normalizeSecret(value).toLowerCase()).digest("hex");
+  return crypto.createHash("sha256").update(canonicalSecret(value)).digest("hex");
 }
 
 export function safeEqual(a: string, b: string) {
@@ -136,7 +144,7 @@ export function verifyAdminSecret(secret: unknown) {
   const configuredSecret = normalizeSecret(ADMIN_SECRET || "");
   if (configuredSecret) {
     if (safeEqual(normalized, configuredSecret)) return true;
-    if (safeEqual(normalized.toLowerCase(), configuredSecret.toLowerCase())) return true;
+    if (safeEqual(canonicalSecret(normalized), canonicalSecret(configuredSecret))) return true;
   }
   return safeEqual(sha256(normalized), ADMIN_SECRET_HASH) || safeEqual(sha256Lower(normalized), ADMIN_SECRET_HASH);
 }

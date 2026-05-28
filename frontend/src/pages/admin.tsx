@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Activity, Copy, Eye, LogOut, Plus, RefreshCw, Shield, Trash2, X } from "lucide-react";
+import { Activity, Check, Copy, Eye, LogOut, Plus, RefreshCw, Shield, Trash2, X } from "lucide-react";
 import { AccessSession, LogEntry } from "@/types";
 import { JsonViewer } from "@/components/json-viewer";
 
@@ -70,6 +70,7 @@ export default function AdminPanel() {
   const [duration, setDuration] = useState(30);
   const [label, setLabel] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
   const [viewer, setViewer] = useState<{ session: AccessSession; logs: LogEntry[] } | null>(null);
 
   const activeCount = useMemo(() => sessions.filter((s) => (s.remainingTime || 0) > 0).length, [sessions]);
@@ -176,7 +177,12 @@ export default function AdminPanel() {
     return () => clearInterval(interval);
   }, [isAuth]);
 
-  const copy = (value: string) => value && navigator.clipboard.writeText(value);
+  const copy = async (value: string) => {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopiedLink(true);
+    window.setTimeout(() => setCopiedLink(false), 1800);
+  };
 
   if (!isAuth) {
     return (
@@ -235,7 +241,7 @@ export default function AdminPanel() {
               <button onClick={generateLink} className="px-6 py-3 bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-bold rounded-xl transition-all active:scale-95">Создать временную ссылку</button>
             </div>
             {error && <div className="rounded-xl border border-red-500/20 bg-red-500/10 text-red-300 p-3 text-sm">{error}</div>}
-            {generatedLink && <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><div className="text-xs uppercase tracking-wider text-emerald-300 mb-2">Сессионная ссылка для пользователя</div><div className="flex gap-2"><input readOnly className="flex-1 p-3 bg-zinc-950 border border-emerald-500/30 rounded-xl text-emerald-200 font-mono text-sm" value={generatedLink} /><button onClick={() => copy(generatedLink)} className="px-4 rounded-xl bg-emerald-400 text-zinc-950 font-bold"><Copy className="w-4 h-4" /></button></div></div>}
+            {generatedLink && <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><div className="text-xs uppercase tracking-wider text-emerald-300 mb-2">Сессионная ссылка для пользователя</div><div className="flex gap-2"><input readOnly className="flex-1 p-3 bg-zinc-950 border border-emerald-500/30 rounded-xl text-emerald-200 font-mono text-sm" value={generatedLink} /><button onClick={() => copy(generatedLink)} className={`px-4 rounded-xl font-bold transition-all min-w-28 flex items-center justify-center gap-2 ${copiedLink ? "bg-emerald-500 text-white" : "bg-emerald-400 text-zinc-950 hover:bg-emerald-300"}`}>{copiedLink ? <><Check className="w-4 h-4" />Готово</> : <><Copy className="w-4 h-4" />Копировать</>}</button></div></div>}
           </div>
 
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-5 grid grid-cols-2 gap-4 content-start">
