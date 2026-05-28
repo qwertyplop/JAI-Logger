@@ -192,7 +192,7 @@ export default function AdminPanel() {
                   <span className="w-5 text-xs font-mono text-zinc-600">{index + 1}</span>
                   <input
                     id={`secret-word-${index}`}
-                    type="password"
+                    type="text"
                     autoComplete="off"
                     spellCheck={false}
                     className="min-w-0 flex-1 bg-transparent text-zinc-100 outline-none placeholder-zinc-700"
