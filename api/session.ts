@@ -1,8 +1,8 @@
-import { getQueryToken, getSession, json, routeParts, readJson, saveSession, validateProviderEndpoint } from "./_lib";
+import { getQueryToken, getSession, json, routeParts, readJson, saveSession, sendResponse, validateProviderEndpoint } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: Request) {
+async function handle(req: Request) {
   const parts = routeParts(req);
   if (req.method.toUpperCase() !== "POST" || parts[0] !== "upstream") return json({ error: "API route not found" }, 404);
   const session = await getSession(getQueryToken(req));
@@ -14,4 +14,8 @@ export default async function handler(req: Request) {
   session.upstreamUrl = validation.url.href;
   await saveSession(session);
   return json({ session });
+}
+
+export default async function handler(req: any, res: any) {
+  await sendResponse(res, await handle(req as Request));
 }

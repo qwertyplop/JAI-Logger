@@ -1,8 +1,8 @@
-import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, verifyAdminSecret } from "./_lib";
+import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, sendResponse, verifyAdminSecret } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: Request) {
+async function handle(req: Request) {
   const parts = routeParts(req);
   const method = req.method.toUpperCase();
 
@@ -61,4 +61,8 @@ export default async function handler(req: Request) {
   }
 
   return json({ error: "API route not found" }, 404);
+}
+
+export default async function handler(req: any, res: any) {
+  await sendResponse(res, await handle(req as Request));
 }

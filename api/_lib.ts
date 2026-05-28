@@ -207,6 +207,13 @@ export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   });
 }
 
+export async function sendResponse(res: any, response: Response) {
+  res.statusCode = response.status;
+  response.headers.forEach((value, key) => res.setHeader(key, value));
+  const body = Buffer.from(await response.arrayBuffer());
+  res.end(body);
+}
+
 export async function readJson(req: Request): Promise<any> {
   const anyReq: any = req;
   if (typeof anyReq.json === "function") {
@@ -244,6 +251,20 @@ export function routeParts(req: Request) {
   const pathname = explicitPath ? `/${explicitPath}` : url.pathname;
   const parts = pathname.split("/").filter(Boolean);
   return parts[0] === "api" ? parts.slice(1) : parts;
+}
+
+export function headerEntries(req: Request): Array<[string, string]> {
+  const headers: any = req.headers;
+  if (headers?.forEach) {
+    const entries: Array<[string, string]> = [];
+    headers.forEach((value: string, key: string) => entries.push([key, value]));
+    return entries;
+  }
+  return Object.entries(headers || {}).flatMap(([key, value]) => {
+    if (Array.isArray(value)) return value.map((item) => [key, String(item)] as [string, string]);
+    if (typeof value === "undefined") return [];
+    return [[key, String(value)] as [string, string]];
+  });
 }
 
 export function getQueryToken(req: Request) {

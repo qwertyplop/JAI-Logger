@@ -1,10 +1,10 @@
-import { getPathToken, requestUrl, getSession, json, newToken, readBodyBuffer, redactHeaders, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
+import { getPathToken, requestUrl, getSession, headerEntries, json, newToken, readBodyBuffer, redactHeaders, sendResponse, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection", "x-access-token"]);
 
-export default async function handler(req: Request) {
+async function handle(req: Request) {
   if (req.method.toUpperCase() === "OPTIONS") return new Response(null, { status: 204 });
   if (req.method.toUpperCase() !== "POST") return json({ error: "Only POST requests to /chat/completions are allowed." }, 405);
 
@@ -29,10 +29,10 @@ export default async function handler(req: Request) {
   const requestHeaders: Record<string, string> = {};
   const forwardHeaders: Record<string, string> = {};
 
-  req.headers.forEach((value, key) => {
+  for (const [key, value] of headerEntries(req)) {
     requestHeaders[key] = value;
     if (!EXCLUDED_HEADERS.has(key.toLowerCase())) forwardHeaders[key] = value;
-  });
+  }
 
   try {
     const upstreamRes = await fetch(targetUrl.href, {
@@ -83,4 +83,8 @@ export default async function handler(req: Request) {
     });
     return json({ error: `AI debug forwarding error: ${errorMsg}` }, 502);
   }
+}
+
+export default async function handler(req: any, res: any) {
+  await sendResponse(res, await handle(req as Request));
 }
