@@ -198,10 +198,10 @@ export default function AdminPanel() {
   }, []);
 
   useEffect(() => {
-    if (!isAuth) return;
-    const interval = setInterval(loadSessions, 10000);
-    return () => clearInterval(interval);
-  }, [isAuth]);
+    if (!isAuth || sessions.length === 0) return;
+    const interval = window.setInterval(() => loadSessions(), 15 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [isAuth, sessions.length]);
 
   const copy = async (value: string) => {
     if (!value) return;
