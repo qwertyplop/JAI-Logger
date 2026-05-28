@@ -1,38 +1,46 @@
 import { useState, useEffect, useCallback } from "react";
-import { LogEntry } from "../types";
+import { AccessSession, LogEntry } from "../types";
 
 export type ConnectionStatus = "Connected" | "Reconnecting..." | "Disconnected";
 
-function getOrCreateSessionId(): string {
-  const key = "proxy_session_id";
-  const existing = localStorage.getItem(key);
-  if (existing) return existing;
-  const id = crypto.randomUUID();
-  localStorage.setItem(key, id);
-  return id;
+function getAccessToken(): string | null {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tokenFromUrl = urlParams.get("token");
+  if (tokenFromUrl) {
+    localStorage.setItem("proxy_access_token", tokenFromUrl);
+    return tokenFromUrl;
+  }
+  return localStorage.getItem("proxy_access_token");
 }
 
 export function useLoggerState() {
-  const [sessionId] = useState<string>(() => getOrCreateSessionId());
-  const [upstreamUrl, setUpstreamUrl] = useState(() => {
-    return localStorage.getItem("proxy_upstream_url") || "";
-  });
+  const [accessToken] = useState<string | null>(() => getAccessToken());
+  const [session, setSession] = useState<AccessSession | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>(() => {
     try {
-      const stored = localStorage.getItem("proxy_logs");
-      return stored ? JSON.parse(stored) : [];
+      const raw = localStorage.getItem("proxy_logs");
+      return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
     }
   });
-  const [status, setStatus] = useState<ConnectionStatus>("Disconnected");
+  const [status, setStatus] = useState<ConnectionStatus>(accessToken ? "Disconnected" : "Disconnected");
+
+  const saveUpstreamUrl = useCallback(async (upstreamUrl: string) => {
+    if (!accessToken) throw new Error("Нет access token");
+    const res = await fetch(`/api/session/upstream?token=${encodeURIComponent(accessToken)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upstreamUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Не удалось сохранить upstream URL");
+    setSession(data.session);
+    return data.session as AccessSession;
+  }, [accessToken]);
 
   useEffect(() => {
-    localStorage.setItem("proxy_upstream_url", upstreamUrl);
-  }, [upstreamUrl]);
-
-  useEffect(() => {
-    localStorage.setItem("proxy_logs", JSON.stringify(logs));
+    localStorage.setItem("proxy_logs", JSON.stringify(logs.slice(0, 500)));
   }, [logs]);
 
   const clearLogs = useCallback(() => {
@@ -41,37 +49,40 @@ export function useLoggerState() {
   }, []);
 
   useEffect(() => {
+    if (!accessToken) {
+      setStatus("Disconnected");
+      return;
+    }
+
+    let cancelled = false;
     let eventSource: EventSource | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`/api/logs/history?token=${encodeURIComponent(accessToken)}`);
+        if (!res.ok) throw new Error("Failed to load history");
+        const data = await res.json();
+        if (!cancelled) {
+          setSession(data.session);
+          setLogs(data.logs || []);
+        }
+      } catch {
+        if (!cancelled) setStatus("Disconnected");
+      }
+    };
+
     const connect = () => {
       setStatus("Reconnecting...");
-      
-      // Extract token from URL to pass to SSE
-      const urlParams = new URLSearchParams(window.location.search);
-      const token = urlParams.get("token");
-      const streamUrl = token 
-        ? `/api/logs/stream?session=${encodeURIComponent(sessionId)}&token=${token}`
-        : `/api/logs/stream?session=${encodeURIComponent(sessionId)}`;
+      eventSource = new EventSource(`/api/logs/stream?token=${encodeURIComponent(accessToken)}`);
 
-      eventSource = new EventSource(streamUrl);
-
-      eventSource.onopen = () => {
-        setStatus("Connected");
-      };
-
+      eventSource.onopen = () => setStatus("Connected");
       eventSource.onmessage = (event) => {
         try {
           const entry: LogEntry = JSON.parse(event.data);
-          setLogs((prev) => {
-            const newLogs = [entry, ...prev].slice(0, 500);
-            return newLogs;
-          });
-        } catch {
-          // ignore malformed SSE messages
-        }
+          setLogs((prev) => [entry, ...prev.filter((log) => log.id !== entry.id)].slice(0, 500));
+        } catch {}
       };
-
       eventSource.onerror = () => {
         setStatus("Disconnected");
         eventSource?.close();
@@ -79,13 +90,16 @@ export function useLoggerState() {
       };
     };
 
-    connect();
+    loadHistory().then(() => {
+      if (!cancelled) connect();
+    });
 
     return () => {
+      cancelled = true;
       eventSource?.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
-  }, [sessionId]);
+  }, [accessToken]);
 
-  return { upstreamUrl, setUpstreamUrl, logs, clearLogs, status, sessionId };
+  return { logs, clearLogs, status, accessToken, session, saveUpstreamUrl };
 }

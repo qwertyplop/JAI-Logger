@@ -12,3 +12,15 @@ export interface LogEntry {
   isStream: boolean;
   error: string | null;
 }
+
+export interface AccessSession {
+  token: string;
+  sessionId: string;
+  upstreamUrl: string;
+  label: string;
+  expiresAt: number;
+  createdAt: number;
+  remainingTime?: number;
+  logCount?: number;
+  connectedClients?: number;
+}
