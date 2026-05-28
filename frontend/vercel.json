@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://ASuLM-jai-proxy-api.hf.space/api/$1"
+    }
+  ]
+}
