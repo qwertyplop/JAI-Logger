@@ -13,7 +13,6 @@ const app = express();
 app.use(pinoHttp({ logger }));
 app.use(cors());
 
-// Use raw body for proxy paths to ensure faithful forwarding
 app.use("/api/proxy", (req, res, next) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return next();
   let data = "";
@@ -57,10 +56,8 @@ function broadcastToSession(sessionId: string, entry: LogEntry) {
   }
 }
 
-// Health check
 app.get("/healthz", (req, res) => res.json({ status: "ok" }));
 
-// SSE stream
 app.get("/logs/stream", (req, res) => {
   const sessionId = req.query.session as string;
   if (!sessionId) return res.status(400).json({ error: "Missing session query param" });
@@ -89,7 +86,6 @@ app.get("/logs/stream", (req, res) => {
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection"]);
 
-// Proxy handler
 app.all("/proxy/:sessionId*", async (req, res) => {
   const sessionId = req.params.sessionId;
   const target = req.query.target as string;
@@ -164,7 +160,7 @@ app.all("/proxy/:sessionId*", async (req, res) => {
       res.send(body);
       broadcastToSession(sessionId, {
         id, timestamp, method: req.method, path: targetUrl,
-        requestHeaders, requestBody: rawBody,
+        requestHeaders, requestBody: raw laBody,
         responseStatus: upstreamRes.status, responseHeaders,
         responseBody: body.length > 50000 ? body.slice(0, 50000) : body,
         durationMs: Date.now() - startMs, isStream: false, error: null,
@@ -182,5 +178,6 @@ app.all("/proxy/:sessionId*", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => logger.info(`Server started on port ${PORT}`));
+// Critical for Hugging Face: use port 7860 by default
+const PORT = process.env.PORT || 7860; 
+app.listen(PORT, "0.0.0.0", () => logger.info(`Server started on port ${PORT}`));
