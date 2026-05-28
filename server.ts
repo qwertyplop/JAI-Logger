@@ -12,29 +12,21 @@ const logger = pino({
 const app = express();
 app.use(pinoHttp({ logger }));
 app.use(cors());
-
-// Handle requests to /api as a separate namespace, 
-// but internally we keep the logic simple.
 app.use(express.json());
 
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  method: string;
-  path: string;
-  requestHeaders: Record<string, string>;
-  requestBody: string | null;
-  responseStatus: number;
-  responseHeaders: Record<string, string>;
-  responseBody: string | null;
-  durationMs: number;
-  isStream: boolean;
-  error: string | null;
+// --- SECURITY CONFIG ---
+const ADMIN_SECRET = process.env.ADMIN_SECRET || "Noble Interest Keep Instruct Travel Ant";
+
+interface AccessToken {
+  expiresAt: number;
+  sessionId: string;
+  createdAt: number;
 }
 
+const accessTokens = new Map<string, AccessToken>();
 const sessionClients = new Map<string, Set<Response>>();
 
-function broadcastToSession(sessionId: string, entry: LogEntry) {
+function broadcastToSession(sessionId: string, entry: any) {
   const clients = sessionClients.get(sessionId);
   if (!clients) return;
   const data = `data: ${JSON.stringify(entry)}\n\n`;
@@ -47,15 +39,92 @@ function broadcastToSession(sessionId: string, entry: LogEntry) {
   }
 }
 
+// --- MIDDLEWARE ---
+
+const authGuard = (req: Request, res: Response, next: any) => {
+  // Admin routes are handled separately with ADMIN_SECRET
+  if (req.path.startsWith('/api/admin')) return next();
+
+  const token = req.query.token as string || req.headers['x-access-token'] as string;
+  
+  if (!token) {
+    return res.status(403).json({ error: "Access denied. Valid access token required." });
+  }
+
+  const access = accessTokens.get(token);
+  if (!access || Date.now() > access.expiresAt) {
+    if (access) accessTokens.delete(token);
+    return res.status(403).json({ error: "Access token expired or invalid." });
+  }
+
+  // Attach sessionId to request for proxy/logs use
+  (req as any).authorizedSessionId = access.sessionId;
+  next();
+};
+
 // --- API ROUTES ---
 
-// Health check
+// Admin: Health check
 app.get("/api/healthz", (req, res) => res.json({ status: "ok" }));
+
+// ADMIN ONLY: Generate Access Link
+app.post("/api/admin/generate", (req: Request, res: Response) => {
+  const { secret, durationMinutes = 30 } = req.body;
+  
+  if (secret !== ADMIN_SECRET) {
+    return res.status(401).json({ error: "Invalid admin secret." });
+  }
+
+  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const sessionId = Math.random().toString(36).substring(2, 15);
+  
+  // Handle "Infinite" or very long durations
+  const expiresAt = durationMinutes === -1 
+    ? 2147483647000 // Approx year 2038
+    : Date.now() + durationMinutes * 60 * 1000;
+
+  accessTokens.set(token, { expiresAt, sessionId, createdAt: Date.now() });
+
+  res.json({ 
+    token, 
+    sessionId, 
+    expiresAt, 
+    durationMinutes,
+    link: `${process.env.CORS_ORIGIN || ''}/?token=${token}` 
+  });
+});
+
+// ADMIN ONLY: List Sessions
+app.get("/api/admin/sessions", (req: Request, res: Response) => {
+  const { secret } = req.query;
+  if (secret !== ADMIN_SECRET) return res.status(401).json({ error: "Invalid admin secret." });
+
+  const sessions = Array.from(accessTokens.entries()).map(([token, data]) => ({
+    token,
+    ...data,
+    remainingTime: Math.max(0, data.expiresAt - Date.now())
+  }));
+
+  res.json(sessions);
+});
+
+// ADMIN ONLY: Kill Session
+app.delete("/api/admin/session/:token", (req: Request, res: Response) => {
+  const { secret } = req.query;
+  if (secret !== ADMIN_SECRET) return res.status(401).json({ error: "Invalid admin secret." });
+  
+  accessTokens.delete(req.params.token);
+  res.json({ success: true });
+});
+
+// apply authGuard to a restricted namespace
+app.use("/api/logs", authGuard);
+app.use("/api/proxy", authGuard);
 
 // SSE stream
 app.get("/api/logs/stream", (req, res) => {
-  const sessionId = req.query.session as string;
-  if (!sessionId) return res.status(400).json({ error: "Missing session query param" });
+  const sessionId = (req as any).authorizedSessionId;
+  if (!sessionId) return res.status(400).json({ error: "No authorized session" });
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -79,22 +148,20 @@ app.get("/api/logs/stream", (req, res) => {
   });
 });
 
-const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection"]);
+const EXCLUDED_HEADERS = new Set(["host", launderHeader("content-length"), "transfer-encoding", "connection"]);
+function launderHeader(h: string) { return h.toLowerCase(); }
 
 // Proxy handler
 app.use("/api/proxy", async (req: Request, res: Response) => {
+  const sessionId = (req as any).authorizedSessionId;
   const segments = req.path.split('/').filter(Boolean);
-  // Path is /api/proxy/:sessionId
+  // Path: /api/proxy/:sessionId
   if (segments.length < 3) {
     return res.status(400).json({ error: "Invalid proxy path. Expected /api/proxy/:sessionId" });
   }
 
-  const sessionId = segments[2];
   const target = req.query.target as string;
-
-  if (!target) {
-    return res.status(400).json({ error: "Missing target query param" });
-  }
+  if (!target) return res.status(400).json({ error: "Missing target query param" });
 
   let targetUrl;
   try { targetUrl = new URL(target).href; } catch { return res.status(400).json({ error: "Invalid target URL" }); }
@@ -187,7 +254,6 @@ app.use("/api/proxy", async (req: Request, res: Response) => {
 const distPath = path.join(__dirname, "dist");
 app.use(express.static(distPath));
 
-// Catch-all for SPA
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api")) {
     return res.status(404).json({ error: "API route not found" });
@@ -196,4 +262,4 @@ app.get("*", (req, res) => {
 });
 
 const PORT = process.env.PORT || 7860; 
-app.listen(PORT, "0.0.0.0", () => logger.info(`🚀 Monolithic server started on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => logger.info(`🚀 Monolithic Admin-Sentry started on port ${PORT}`));

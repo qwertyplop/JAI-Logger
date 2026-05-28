@@ -14,11 +14,9 @@ function getOrCreateSessionId(): string {
 
 export function useLoggerState() {
   const [sessionId] = useState<string>(() => getOrCreateSessionId());
-
   const [upstreamUrl, setUpstreamUrl] = useState(() => {
     return localStorage.getItem("proxy_upstream_url") || "";
   });
-
   const [logs, setLogs] = useState<LogEntry[]>(() => {
     try {
       const stored = localStorage.getItem("proxy_logs");
@@ -27,7 +25,6 @@ export function useLoggerState() {
       return [];
     }
   });
-
   const [status, setStatus] = useState<ConnectionStatus>("Disconnected");
 
   useEffect(() => {
@@ -49,7 +46,15 @@ export function useLoggerState() {
 
     const connect = () => {
       setStatus("Reconnecting...");
-      eventSource = new EventSource(`/api/logs/stream?session=${encodeURIComponent(sessionId)}`);
+      
+      // Extract token from URL to pass to SSE
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get("token");
+      const streamUrl = token 
+        ? `/api/logs/stream?session=${encodeURIComponent(sessionId)}&token=${token}`
+        : `/api/logs/stream?session=${encodeURIComponent(sessionId)}`;
+
+      eventSource = new EventSource(streamUrl);
 
       eventSource.onopen = () => {
         setStatus("Connected");
