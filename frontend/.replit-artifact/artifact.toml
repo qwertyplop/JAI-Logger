@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "AI Proxy Logger"
+version = "1.0.0"
+id = "artifacts/proxy-logger"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19302
+
+[services.development]
+run = "pnpm --filter @workspace/proxy-logger run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/proxy-logger", "run", "build" ]
+publicDir = "artifacts/proxy-logger/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19302"
+BASE_PATH = "/"
