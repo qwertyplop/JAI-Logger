@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm --dir frontend install --frozen-lockfile && pnpm --dir frontend run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/admin/:path*", "destination": "/api/admin" },
+    { "source": "/api/session/:path*", "destination": "/api/session" },
+    { "source": "/api/logs/:path*", "destination": "/api/logs" },
+    { "source": "/api/ai-debug/:path*", "destination": "/api/ai-debug" },
+    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
+  ]
+}

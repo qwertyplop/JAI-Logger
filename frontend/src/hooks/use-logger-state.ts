@@ -24,7 +24,25 @@ export function useLoggerState() {
       return [];
     }
   });
-  const [status, setStatus] = useState<ConnectionStatus>(accessToken ? "Disconnected" : "Disconnected");
+  const [status, setStatus] = useState<ConnectionStatus>("Disconnected");
+
+  const refreshLogs = useCallback(async () => {
+    if (!accessToken) {
+      setStatus("Disconnected");
+      return;
+    }
+    setStatus("Reconnecting...");
+    try {
+      const res = await fetch(`/api/logs/history?token=${encodeURIComponent(accessToken)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load history");
+      setSession(data.session);
+      setLogs(data.logs || []);
+      setStatus("Connected");
+    } catch {
+      setStatus("Disconnected");
+    }
+  }, [accessToken]);
 
   const saveUpstreamUrl = useCallback(async (upstreamUrl: string) => {
     if (!accessToken) throw new Error("Нет access token");
@@ -49,57 +67,8 @@ export function useLoggerState() {
   }, []);
 
   useEffect(() => {
-    if (!accessToken) {
-      setStatus("Disconnected");
-      return;
-    }
+    refreshLogs();
+  }, [refreshLogs]);
 
-    let cancelled = false;
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    const loadHistory = async () => {
-      try {
-        const res = await fetch(`/api/logs/history?token=${encodeURIComponent(accessToken)}`);
-        if (!res.ok) throw new Error("Failed to load history");
-        const data = await res.json();
-        if (!cancelled) {
-          setSession(data.session);
-          setLogs(data.logs || []);
-        }
-      } catch {
-        if (!cancelled) setStatus("Disconnected");
-      }
-    };
-
-    const connect = () => {
-      setStatus("Reconnecting...");
-      eventSource = new EventSource(`/api/logs/stream?token=${encodeURIComponent(accessToken)}`);
-
-      eventSource.onopen = () => setStatus("Connected");
-      eventSource.onmessage = (event) => {
-        try {
-          const entry: LogEntry = JSON.parse(event.data);
-          setLogs((prev) => [entry, ...prev.filter((log) => log.id !== entry.id)].slice(0, 500));
-        } catch {}
-      };
-      eventSource.onerror = () => {
-        setStatus("Disconnected");
-        eventSource?.close();
-        reconnectTimeout = setTimeout(connect, 3000);
-      };
-    };
-
-    loadHistory().then(() => {
-      if (!cancelled) connect();
-    });
-
-    return () => {
-      cancelled = true;
-      eventSource?.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    };
-  }, [accessToken]);
-
-  return { logs, clearLogs, status, accessToken, session, saveUpstreamUrl };
+  return { logs, clearLogs, status, accessToken, session, saveUpstreamUrl, refreshLogs };
 }

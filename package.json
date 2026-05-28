@@ -4,9 +4,12 @@
   "private": true,
   "description": "Temporary AI request debugger with Express and React admin panel",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "vercel dev",
+    "dev:server": "tsx server.ts",
+    "build": "cd frontend && pnpm install && pnpm run build",
     "build:frontend": "cd frontend && pnpm install && pnpm run build",
-    "start": "tsx server.ts"
+    "start": "tsx server.ts",
+    "typecheck": "tsc --noEmit && cd frontend && pnpm run typecheck"
   },
   "dependencies": {
     "cors": "^2.8.5",

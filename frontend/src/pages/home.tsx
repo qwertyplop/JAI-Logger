@@ -88,7 +88,7 @@ function LogItem({ entry }: { entry: LogEntry }) {
 }
 
 export default function Home() {
-  const { logs, clearLogs, status, accessToken, session, saveUpstreamUrl } = useLoggerState();
+  const { logs, clearLogs, status, accessToken, session, saveUpstreamUrl, refreshLogs } = useLoggerState();
   const { toast } = useToast();
   const [upstreamDraft, setUpstreamDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -166,7 +166,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto h-full flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-zinc-800/70 sticky top-0 bg-zinc-950/95 backdrop-blur z-10">
             <h2 className="text-sm font-semibold font-mono tracking-tight flex items-center gap-2">Логи запросов <Badge variant="secondary" className="font-mono text-xs">{logs.length}</Badge></h2>
-            <Button variant="ghost" size="sm" onClick={clearLogs} className="text-zinc-500 hover:text-red-300 h-8 text-xs font-mono"><Trash2 className="w-4 h-4 mr-2" />Очистить локально</Button>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={refreshLogs} className="h-8 text-xs font-mono">Обновить</Button>
+              <Button variant="ghost" size="sm" onClick={clearLogs} className="text-zinc-500 hover:text-red-300 h-8 text-xs font-mono"><Trash2 className="w-4 h-4 mr-2" />Очистить локально</Button>
+            </div>
           </div>
           <div className="flex-1 overflow-auto rounded-b-2xl border-x border-zinc-800/60">
             {logs.length === 0 ? (
@@ -177,8 +180,8 @@ export default function Home() {
       </main>
 
       <footer className="flex-none border-t border-zinc-800 bg-zinc-950 p-2 px-5 flex items-center justify-between text-xs font-mono text-zinc-500">
-        <div className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${status === "Connected" ? "bg-emerald-400 animate-pulse" : status === "Reconnecting..." ? "bg-yellow-400 animate-pulse" : "bg-red-400"}`} />{status}</div>
-        <div>Limit: 500 entries</div>
+        <div className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${status === "Connected" ? "bg-emerald-400" : status === "Reconnecting..." ? "bg-yellow-400 animate-pulse" : "bg-red-400"}`} />{status === "Connected" ? "Loaded" : status}</div>
+        <div>Manual refresh · stored in Upstash Redis</div>
       </footer>
     </div>
   );
