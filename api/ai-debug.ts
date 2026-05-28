@@ -1,19 +1,19 @@
-import { getPathToken, requestUrl, getSession, headerEntries, json, newToken, readBodyBuffer, redactHeaders, sendResponse, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
+import { CORS_HEADERS, getPathToken, requestUrl, getSession, headerEntries, json, newToken, readBodyBuffer, redactHeaders, sendResponse, storeLog, truncateText, validateProviderEndpoint, type AccessSession, type StoredLogEntry } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection", "x-access-token"]);
 
 async function handle(req: Request) {
-  if (req.method.toUpperCase() === "OPTIONS") return new Response(null, { status: 204 });
-  if (req.method.toUpperCase() !== "POST") return json({ error: "Only POST requests to /chat/completions are allowed." }, 405);
+  if (req.method.toUpperCase() === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+  if (req.method.toUpperCase() !== "POST") return json({ error: "Only POST requests to /chat/completions are allowed." }, 405, CORS_HEADERS);
 
   const session = await getSession(getPathToken(req, "/api/ai-debug"));
-  if (!session) return json({ error: "Access token expired or invalid." }, 403);
-  if (!session.upstreamUrl) return json({ error: "Provider endpoint is not configured for this session. Open the session link first." }, 400);
+  if (!session) return json({ error: "Access token expired or invalid." }, 403, CORS_HEADERS);
+  if (!session.upstreamUrl) return json({ error: "Provider endpoint is not configured for this session. Open the session link first." }, 400, CORS_HEADERS);
 
   const validation = validateProviderEndpoint(session.upstreamUrl);
-  if (validation.ok === false) return json({ error: validation.error }, 400);
+  if (validation.ok === false) return json({ error: validation.error }, 400, CORS_HEADERS);
 
   const targetUrl = new URL(validation.url.href);
   const sourceUrl = requestUrl(req);
@@ -42,7 +42,7 @@ async function handle(req: Request) {
     });
 
     const responseHeaders: Record<string, string> = {};
-    const headers = new Headers();
+    const headers = new Headers(CORS_HEADERS);
     upstreamRes.headers.forEach((value, key) => {
       responseHeaders[key] = value;
       if (!["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key.toLowerCase())) headers.set(key, value);
@@ -81,7 +81,7 @@ async function handle(req: Request) {
       isStream: false,
       error: errorMsg,
     });
-    return json({ error: `AI debug forwarding error: ${errorMsg}` }, 502);
+    return json({ error: `AI debug forwarding error: ${errorMsg}` }, 502, CORS_HEADERS);
   }
 }
 

@@ -7,6 +7,12 @@ export const MAX_SESSION_TTL_MS = 60 * 60 * 1000;
 export const MAX_LOGS_PER_SESSION = 200;
 export const MAX_CAPTURE_CHARS = 80_000;
 export const DEFAULT_ADMIN_SECRET_HASH = "ce34128fd5efe2e4fdf4725ee5268992db7f4d00b71f8cd08823b1011e1e267a";
+export const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Max-Age": "86400",
+};
 export const ADMIN_SECRET_HASH = (process.env.ADMIN_SECRET_HASH || DEFAULT_ADMIN_SECRET_HASH).trim().toLowerCase();
 export const ADMIN_SECRET = stripWrappingQuotes(process.env.ADMIN_SECRET || "");
 
