@@ -13,6 +13,14 @@ const app = express();
 app.use(pinoHttp({ logger }));
 app.use(cors());
 
+// Middleware to strip /api prefix from all requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    req.url = req.url.replace(/^\/api/, '');
+  }
+  next();
+});
+
 // For proxy routes, capture raw body as text so we forward it faithfully
 app.use("/api/proxy", (req: Request, res: Response, next: (err?: any) => void) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return next();
