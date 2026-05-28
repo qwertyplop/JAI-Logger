@@ -18,28 +18,8 @@
       "destination": "/api/ai-debug"
     },
     {
-      "source": "/assets/:path*",
-      "destination": "/frontend/dist/assets/:path*"
-    },
-    {
-      "source": "/favicon.svg",
-      "destination": "/frontend/dist/favicon.svg"
-    },
-    {
-      "source": "/opengraph.jpg",
-      "destination": "/frontend/dist/opengraph.jpg"
-    },
-    {
-      "source": "/admin",
-      "destination": "/frontend/dist/index.html"
-    },
-    {
-      "source": "/admin/",
-      "destination": "/frontend/dist/index.html"
-    },
-    {
-      "source": "/",
-      "destination": "/frontend/dist/index.html"
+      "source": "/((?!api/.*).*)",
+      "destination": "/index.html"
     }
   ]
 }
