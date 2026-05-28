@@ -24,7 +24,14 @@ async function handle(req: Request) {
   if (adminError) return adminError;
 
   if (parts[0] === "sessions" && !parts[1]) {
-    if (method === "GET") return json(await listSessions());
+    if (method === "GET") {
+      if (headerValue(req, "x-jai-admin-ui") !== "manual-refresh-v1") {
+        return json({ error: "Stale admin client. Reload the page." }, 401, {
+          "Set-Cookie": `${ADMIN_COOKIE}=; HttpOnly; SameSite=Lax; Secure; Path=/; Max-Age=0`,
+        });
+      }
+      return json(await listSessions());
+    }
     if (method === "DELETE") return json({ success: true, deleted: await clearAllSessions() });
     if (method === "POST") {
       const { durationMinutes = 30, label = "" } = await readJson(req);

@@ -79,7 +79,7 @@ export default function AdminPanel() {
   const activeCount = useMemo(() => sessions.filter((s) => (s.remainingTime || 0) > 0).length, [sessions]);
 
   const loadSessions = async (showFeedback = false) => {
-    const res = await fetch("/api/admin/sessions");
+    const res = await fetch("/api/admin/sessions", { headers: { "x-jai-admin-ui": "manual-refresh-v1" } });
     if (res.status === 401) {
       setIsAuth(false);
       return;
