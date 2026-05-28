@@ -86,11 +86,22 @@ app.get("/logs/stream", (req, res) => {
 
 const EXCLUDED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection"]);
 
-app.all("/proxy/:sessionId(.*)", async (req, res) => {
-  const sessionId = req.params.sessionId;
+
+// Simple path-based routing for proxy to avoid path-to-regexp issues in Express 5
+app.all("/proxy/*", async (req, res) => {
+  const path = req.path; // e.g., /proxy/my-session-123/some/path
+  const segments = path.split('/').filter(Boolean); // ["proxy", "sessionid", "rest..."]
+  
+  if (segments[0] !== "proxy" || !segments[1]) {
+    return res.status(400).json({ error: "Invalid proxy path. Expected /proxy/:sessionId" });
+  }
+
+  const sessionId = segments[1];
   const target = req.query.target as string;
 
-  if (!target) return res.status(400).json({ error: "Missing target query param" });
+  if (!target) {
+    return res.status(400).json({ error: "Missing target query param" });
+  }
 
   let targetUrl;
   try { targetUrl = new URL(target).href; } catch { return res.status(400).json({ error: "Invalid target URL" }); }
@@ -177,7 +188,5 @@ app.all("/proxy/:sessionId(.*)", async (req, res) => {
     res.status(502).json({ error: `Proxy error: ${errorMsg}` });
   }
 });
-
-// Critical for Hugging Face: use port 7860 by default
 const PORT = process.env.PORT || 7860; 
 app.listen(PORT, "0.0.0.0", () => logger.info(`Server started on port ${PORT}`));
