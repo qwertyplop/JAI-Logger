@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLoggerState } from "@/hooks/use-logger-state";
 import { Check, Copy, Trash2, Activity, AlertCircle, ChevronDown, ChevronRight, ShieldCheck, RadioTower, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,8 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"links" | "logs">("links");
   const [providerDirty, setProviderDirty] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
   const savedProvider = session?.upstreamUrl || "";
   const debugUrl = accessToken ? `${window.location.origin}/api/ai-debug/${encodeURIComponent(accessToken)}` : "";
 
@@ -157,6 +159,26 @@ export default function Home() {
     }
   }, [savedProvider, providerDirty, upstreamDraft]);
 
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    let lastY = el.scrollTop;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = el.scrollTop;
+        if (y > lastY + 40) setCollapsed(true);
+        else if (y < lastY - 20) setCollapsed(false);
+        lastY = y;
+        ticking = false;
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   if (status === "Revoked") {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
@@ -183,7 +205,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden">
-      <header className="flex-none border-b border-zinc-800 bg-zinc-950/95 p-4 md:p-5">
+      <header className={`flex-none bg-zinc-950/95 transition-all duration-200 ease-in-out overflow-hidden ${collapsed ? "max-h-0 opacity-0 p-0 border-0" : "max-h-40 opacity-100 p-4 md:p-5 border-b border-zinc-800"}`}>
         <div className="max-w-7xl mx-auto space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -203,7 +225,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto">
+      <main ref={mainRef} className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto h-full flex flex-col">
           {activeTab === "links" && (
             <div className="p-4 md:p-5 space-y-4">
