@@ -1,4 +1,4 @@
-import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_SESSION_TTL_MS, adminKey, clearAllSessions, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, sendResponse, verifyAdminSecret } from "./_lib";
+import { ADMIN_COOKIE, ADMIN_SESSION_TTL_MS, MAX_LOGS_PER_SESSION, MAX_SESSION_TTL_MS, adminKey, clearAllSessions, deleteSession, getLogs, getPublicOrigin, getSession, headerValue, isAdmin, json, listSessions, routeParts, newToken, readJson, redis, requireAdmin, saveSession, sendResponse, verifyAdminSecret } from "./_lib";
 
 export const config = { runtime: "nodejs" };
 
@@ -65,6 +65,14 @@ async function handle(req: Request) {
     if (method === "DELETE" && parts[2] === "logs") {
       await redis(["DEL", `jai:logs:${session.sessionId}`]);
       return json({ success: true });
+    }
+    if (method === "PATCH" && !parts[2]) {
+      const { addMinutes } = await readJson(req);
+      const minutes = Number(addMinutes);
+      if (!Number.isFinite(minutes) || minutes <= 0) return json({ error: "Invalid addMinutes." }, 400);
+      session.expiresAt = Math.min(session.expiresAt + minutes * 60 * 1000, Date.now() + MAX_SESSION_TTL_MS);
+      await saveSession(session);
+      return json({ success: true, session });
     }
   }
 

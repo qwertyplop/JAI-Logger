@@ -9,6 +9,12 @@ const durationOptions = [
   { value: 60, label: "1 час" },
 ];
 
+const extendOptions = [
+  { value: 15, label: "+15м" },
+  { value: 30, label: "+30м" },
+  { value: 60, label: "+1ч" },
+];
+
 function formatRemaining(ms = 0) {
   const minutes = Math.max(0, Math.floor(ms / 60000));
   const seconds = Math.max(0, Math.floor((ms % 60000) / 1000));
@@ -167,6 +173,21 @@ export default function AdminPanel() {
     window.setTimeout(() => setDeletedToken(null), 1500);
   };
 
+  const extendSession = async (token: string, addMinutes: number) => {
+    const res = await fetch(`/api/admin/sessions/${encodeURIComponent(token)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ addMinutes }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Не удалось продлить сессию");
+      return;
+    }
+    await loadSessions();
+    setError("");
+  };
+
   const clearAllSessions = async () => {
     const res = await fetch("/api/admin/sessions", { method: "DELETE" });
     if (!res.ok) {
@@ -282,7 +303,7 @@ export default function AdminPanel() {
                   <td className="p-4 max-w-md"><div className={`font-mono text-xs truncate ${s.upstreamUrl ? "text-zinc-400" : "text-amber-300"}`} title={s.upstreamUrl || "Пользователь еще не указал endpoint"}>{s.upstreamUrl || "Endpoint еще не указан"}</div><div className="text-xs text-zinc-600 mt-1">Создано: {new Date(s.createdAt).toLocaleString()}</div></td>
                   <td className="p-4"><div className="flex items-center gap-2 text-xs font-bold"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span>{formatRemaining(s.remainingTime)}</span></div></td>
                   <td className="p-4"><div className="font-mono text-sm text-zinc-300">{s.logCount || 0}</div></td>
-                  <td className="p-4"><div className="flex justify-end gap-2"><button onClick={() => window.open(`/?token=${encodeURIComponent(s.token)}`, "_blank")} className="p-2 text-zinc-400 hover:text-white bg-zinc-800 rounded-lg" title="Открыть пользовательскую страницу"><Eye className="w-4 h-4" /></button><button onClick={() => openLogs(s)} className="p-2 text-zinc-400 hover:text-emerald-300 bg-zinc-800 rounded-lg" title="Посмотреть логи"><Activity className="w-4 h-4" /></button><button onClick={() => killSession(s.token)} className={`p-2 rounded-lg transition-all ${deletedToken === s.token ? "text-emerald-300 bg-emerald-500/10" : "text-zinc-400 hover:text-red-300 bg-zinc-800"}`} title="Отозвать">{deletedToken === s.token ? <Check className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}</button></div></td>
+                  <td className="p-4"><div className="flex justify-end gap-2 flex-wrap"><button onClick={() => extendSession(s.token, 15)} className="px-2 py-1 text-[10px] font-mono bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700">+15м</button><button onClick={() => extendSession(s.token, 30)} className="px-2 py-1 text-[10px] font-mono bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700">+30м</button><button onClick={() => extendSession(s.token, 60)} className="px-2 py-1 text-[10px] font-mono bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700">+1ч</button><button onClick={() => window.open(`/?token=${encodeURIComponent(s.token)}`, "_blank")} className="p-2 text-zinc-400 hover:text-white bg-zinc-800 rounded-lg" title="Открыть пользовательскую страницу"><Eye className="w-4 h-4" /></button><button onClick={() => openLogs(s)} className="p-2 text-zinc-400 hover:text-emerald-300 bg-zinc-800 rounded-lg" title="Посмотреть логи"><Activity className="w-4 h-4" /></button><button onClick={() => killSession(s.token)} className={`p-2 rounded-lg transition-all ${deletedToken === s.token ? "text-emerald-300 bg-emerald-500/10" : "text-zinc-400 hover:text-red-300 bg-zinc-800"}`} title="Отозвать">{deletedToken === s.token ? <Check className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}</button></div></td>
                 </tr>
               ))}
             </tbody>
