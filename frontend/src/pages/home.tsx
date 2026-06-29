@@ -192,7 +192,7 @@ export default function Home() {
                 Вставь полный HTTPS endpoint своего провайдера <span className="text-emerald-300">включая /chat/completions</span>. Логгер будет пересылать только POST-запросы к этому конкретному endpoint и показывать request/response для отладки.
               </p>
             </div>
-            <div className="flex md:hidden">
+            <div className="flex">
               <div className="flex rounded-xl border border-zinc-800 bg-zinc-900 p-0.5">
                 <button onClick={() => setActiveTab("links")} className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg ${activeTab === "links" ? "bg-zinc-800 text-white" : "text-zinc-400"}`}>Ссылки</button>
                 <button onClick={() => setActiveTab("logs")} className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg ${activeTab === "logs" ? "bg-zinc-800 text-white" : "text-zinc-400"}`}>Логи</button>
