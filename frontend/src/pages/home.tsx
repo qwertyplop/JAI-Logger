@@ -169,7 +169,8 @@ export default function Home() {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const y = scrollEl.scrollTop;
-        if (y > lastY + 40) setCollapsed(true);
+        if (y <= 0) setCollapsed(false);
+        else if (y > lastY + 40) setCollapsed(true);
         else if (y < lastY - 20) setCollapsed(false);
         lastY = y;
       });
