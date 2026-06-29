@@ -162,22 +162,24 @@ export default function Home() {
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
-    let lastY = el.scrollTop;
-    let ticking = false;
+    const scrollEl = el.querySelector(".flex-1.overflow-auto") || el;
+    let lastY = scrollEl.scrollTop;
+    let frame = 0;
     const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = el.scrollTop;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const y = scrollEl.scrollTop;
         if (y > lastY + 40) setCollapsed(true);
         else if (y < lastY - 20) setCollapsed(false);
         lastY = y;
-        ticking = false;
       });
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [activeTab]);
 
   if (status === "Revoked") {
     return (
@@ -205,25 +207,29 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden">
-      <header className={`flex-none bg-zinc-950/95 transition-all duration-200 ease-in-out overflow-hidden ${collapsed ? "max-h-0 opacity-0 p-0 border-0" : "max-h-40 opacity-100 p-4 md:p-5 border-b border-zinc-800"}`}>
-        <div className="max-w-7xl mx-auto space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-400" />JAI Request Debugger</h1>
-              <p className="text-zinc-400 mt-2 max-w-2xl text-sm md:text-base">
-                Вставь полный HTTPS endpoint своего провайдера <span className="text-emerald-300">включая /chat/completions</span>. Логгер будет пересылать только POST-запросы к этому конкретному endpoint и показывать request/response для отладки.
-              </p>
-            </div>
-            <div className="flex">
-              <div className="flex rounded-xl border border-zinc-800 bg-zinc-900 p-0.5">
-                <button onClick={() => setActiveTab("links")} className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg ${activeTab === "links" ? "bg-zinc-800 text-white" : "text-zinc-400"}`}>Ссылки</button>
-                <button onClick={() => setActiveTab("logs")} className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg ${activeTab === "logs" ? "bg-zinc-800 text-white" : "text-zinc-400"}`}>Логи</button>
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}>
+        <div className="overflow-hidden min-h-0">
+          <header className="bg-zinc-950/95 border-b border-zinc-800 p-4 md:p-5">
+            <div className="max-w-7xl mx-auto space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-400" />JAI Request Debugger</h1>
+                  <p className="text-zinc-400 mt-2 max-w-2xl text-sm md:text-base">
+                    Вставь полный HTTPS endpoint своего провайдера <span className="text-emerald-300">включая /chat/completions</span>. Логгер будет пересылать только POST-запросы к этому конкретному endpoint и показывать request/response для отладки.
+                  </p>
+                </div>
+                <div className="flex">
+                  <div className="flex rounded-xl border border-zinc-800 bg-zinc-900 p-0.5">
+                    <button onClick={() => setActiveTab("links")} className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg ${activeTab === "links" ? "bg-zinc-800 text-white" : "text-zinc-400"}`}>Ссылки</button>
+                    <button onClick={() => setActiveTab("logs")} className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg ${activeTab === "logs" ? "bg-zinc-800 text-white" : "text-zinc-400"}`}>Логи</button>
+                  </div>
+                </div>
+                <Badge variant="outline" className="border-zinc-700 text-zinc-300 hidden md:inline-flex">Temporary Session</Badge>
               </div>
             </div>
-            <Badge variant="outline" className="border-zinc-700 text-zinc-300 hidden md:inline-flex">Temporary Session</Badge>
-          </div>
+          </header>
         </div>
-      </header>
+      </div>
 
       <main ref={mainRef} className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto h-full flex flex-col">
